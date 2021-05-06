@@ -83,7 +83,7 @@ function input {
     prompt=" [$2]"
   fi
   while true; do
-      echo -ne "\e[32m$1$prompt: \e[0m"
+      echo -ne "\e[33m$1$prompt: \e[0m"
       read -r input_reply </dev/tty
       if [[ -z $input_reply ]]; then
           input_reply=$default
@@ -96,18 +96,47 @@ function input {
 }
 ############################################################
 
+# check the OS distribution
+if [ ! -f /etc/os-release ]; then
+    die "This script only support Ubuntu 20.04"
+else
+  . /etc/os-release
+  if [ "${ID}" != "ubuntu" -a "${VERSION_ID}" != "20.04" ]; then
+    die "This script only support Ubuntu 20.04"
+  fi
+fi
+
+# Software update
+if ask "Do you want to update and upgrade the OS software?" Y;then
+  print_info "apt update"
+  sudo apt -y update
+  print_info "apt upgrade"
+  sudo apt -y upgrade
+fi
 
 # Git configuration
-print_info "Install gitconfig"
-#cp gitconfig ~/.gitconfig
+if ask "Setup Git configuration?" Y;then
+  print_info "Git setup"
+  sudo apt -y install git
+  cp gitconfig ~/.gitconfig
+  input "Enter your Git username" "John Doe"
+  echo "${input_reply}"
+  git config --global user.name "${input_reply}"
+  echo "${input_reply}"
+  input "Enter your Git email" "john.doe@mail.com"
+  git config --global user.email "${input_reply}"
+  git config --global credential.username "${input_reply}"
+fi
 
 # Change user password
-print_info "Change user '$(whoami)' password"
-#passwd
+if ask "Do you want to change current user password?" Y;then
+  print_info "Change user '$(whoami)' password"
+  passwd
+fi
 
 # Enable IPv6
-print_info "Enable IPv6 network"
-if ask "Do you have a public IPv6?" Y;then
+if ask "Do you have a public IPv6 address?" Y;then
+  print_info "Enable IPv6 network"
   input "Enter the IPv6 address"
   echo $input_reply
   input "Enter the IPv6 gateway"
