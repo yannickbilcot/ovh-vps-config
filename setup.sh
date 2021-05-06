@@ -136,9 +136,17 @@ fi
 
 # Enable IPv6
 if ask "Do you have a public IPv6 address?" Y;then
-  print_info "Enable IPv6 network"
+  print_info "Configure the static IPv6 network"
+  public_iface=$(ip route show default | awk '/default/ {print $5}')
+  input "Enter the default route interface" "${public_iface}"
+  sed -i "s|%PUBLIC_IFACE|$input_reply|g" 51-cloud-init-ipv6.yaml
   input "Enter the IPv6 address"
-  echo $input_reply
+  sed -i "s|%IPv6_ADDRESS|$input_reply|g" 51-cloud-init-ipv6.yaml
+  input "Enter the IPv6 address prefix" "128"
+  sed -i "s|%IPv6_PREFIX|$input_reply|g" 51-cloud-init-ipv6.yaml
   input "Enter the IPv6 gateway"
-  echo $input_reply
+  sed -i "s|%IPv6_GATEWAY|$input_reply|g" 51-cloud-init-ipv6.yaml
+  sudo cp 51-cloud-init-ipv6.yaml /etc/netplan
+  sudo netplan try
+  sudo netplan apply
 fi

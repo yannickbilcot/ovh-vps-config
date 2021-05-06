@@ -1,0 +1,13 @@
+network:
+    version: 2
+    ethernets:
+        %PUBLIC_IFACE:
+            dhcp6: no
+            match:
+              name: %PUBLIC_IFACE
+            addresses:
+              - %IPv6_ADDRESS/%IPv6_PREFIX
+            gateway6: %IPv6_GATEWAY
+            routes:
+              - to: %IPv6_GATEWAY
+                scope: link
