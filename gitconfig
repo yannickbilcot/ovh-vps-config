@@ -1,30 +1,30 @@
 [credential]
-    helper = store
-    username = yannick.bilcot@laposte.net
+	helper = store
+	username = yannick.bilcot@laposte.net
 [user]
-    name = Yannick BILCOT
-    email = yannick.bilcot@laposte.net
+	name = Yannick BILCOT
+	email = yannick.bilcot@laposte.net
 [diff]
-    tool = vimdiff
-    renames = true
+	tool = vimdiff
+	renames = true
 [merge]
-    tool = vimdiff
+	tool = vimdiff
 [core]
-    editor = /usr/bin/vim
+	editor = /usr/bin/vim
 [color]
-    ui = auto
+	ui = auto
 [alias]
-    st = status
-    ci = commit
-    br = branch
-    co = checkout
-    df = diff
-    ds = diff --staged
-    lg = log -p
-    lol = log --graph --decorate --pretty=oneline --abbrev-commit
-    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all --date=local
-    ls = ls-files
-    unstage = reset HEAD
+	st = status
+	ci = commit
+	br = branch
+	co = checkout
+	df = diff
+	ds = diff --staged
+	lg = log -p
+	lol = log --graph --decorate --pretty=oneline --abbrev-commit
+	lola = log --graph --decorate --pretty=oneline --abbrev-commit --all --date=local
+	ls = ls-files
+	unstage = reset HEAD
 
-    # Show files ignored by git:
-    ign = ls-files -o -i --exclude-standard
+	# Show files ignored by git:
+	ign = ls-files -o -i --exclude-standard
