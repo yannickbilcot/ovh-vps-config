@@ -19,6 +19,7 @@ chmod +x ./setup.sh
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
 - [ ] SSH configuration
+  - [ ] Authentication via SSH keys
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
   - [ ] Setup fail2ban for SSH
   - [ ] Enable 2FA (google authenticator)
@@ -26,6 +27,7 @@ chmod +x ./setup.sh
 
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
+- [ ] Setup PSAD
 
 - [ ] Setup Wireguard
   - [ ] Add IPv6 support (generate ULA address randomly)
