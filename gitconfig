@@ -1,9 +1,5 @@
 [credential]
 	helper = store
-	username = yannick.bilcot@laposte.net
-[user]
-	name = Yannick BILCOT
-	email = yannick.bilcot@laposte.net
 [diff]
 	tool = vimdiff
 	renames = true
