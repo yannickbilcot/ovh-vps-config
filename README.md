@@ -3,9 +3,8 @@ OVH VPS configuration for Ubuntu 20.04
 
 ### Quickstart
 
-* Clone this repository
-
 ```bash
+git clone https://github.com/yannickbilcot/ovh-vps-config.git
 cd ovh-vps-config
 chmod +x ./setup.sh
 ./setup.sh
