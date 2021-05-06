@@ -20,6 +20,7 @@ chmod +x ./setup.sh
 - [ ] Setup IPv4 Firewall
 - [ ] SSH configuration
   - [ ] Authentication via SSH keys
+  - [ ] Disallow password authentication
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
   - [ ] Setup fail2ban for SSH
   - [ ] Enable 2FA (google authenticator)
