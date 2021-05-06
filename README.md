@@ -13,8 +13,8 @@ chmod +x ./setup.sh
 
 ## VPS Configuration
 
-- [ ] GIT configuration
-- [ ] Change default user password
+- [x] GIT configuration
+- [x] Change default user password
 - [ ] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
