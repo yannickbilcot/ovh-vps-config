@@ -15,7 +15,7 @@ chmod +x ./setup.sh
 
 - [x] GIT configuration
 - [x] Change default user password
-- [ ] Enable IPv6
+- [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
 - [ ] SSH configuration
