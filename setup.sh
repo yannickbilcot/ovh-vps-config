@@ -120,9 +120,7 @@ if ask "Setup Git configuration?" Y;then
   sudo apt -y install git
   cp gitconfig ~/.gitconfig
   input "Enter your Git username" "John Doe"
-  echo "${input_reply}"
   git config --global user.name "${input_reply}"
-  echo "${input_reply}"
   input "Enter your Git email" "john.doe@mail.com"
   git config --global user.email "${input_reply}"
   git config --global credential.username "${input_reply}"
@@ -130,7 +128,6 @@ fi
 
 # Change user password
 if ask "Do you want to change current user password?" Y;then
-  print_info "Change user '$(whoami)' password"
   passwd
 fi
 
@@ -149,4 +146,40 @@ if ask "Do you have a public IPv6 address?" Y;then
   sudo cp 51-cloud-init-ipv6.yaml /etc/netplan
   sudo netplan try
   sudo netplan apply
+fi
+
+# Enable SSH 2FA
+if ask "Do you want to enable SSH 2FA ?" Y;then
+  print_info "install google-authenticator"
+  sudo apt -y install libpam-google-authenticator
+  # google-authenticator settings
+  # -t => Time based counter
+  # -d => Disallow token reuse
+  # -f => Force writing the settings to file without prompting the user
+  # -r => How many attempts to enter the correct code
+  # -R => How long in seconds a user can attempt to enter the correct code
+  # -w => How many codes can are valid at a time (this references the 1:30 min - 4 min window of valid codes)
+  google-authenticator -t -d -f -r 3 -R 30 -w 3
+  if [ ! -f sshd.bak ]; then
+    sudo cp /etc/pam.d/sshd sshd.bak
+  fi
+  cp sshd.bak sshd
+  echo "auth required pam_google_authenticator.so nullok" >> sshd
+  echo "auth required pam_permit.so" >> sshd
+  sudo cp sshd /etc/pam.d/sshd
+  rm sshd
+  if [ ! -f sshd_config.bak ]; then
+    sudo cp /etc/ssh/sshd_config sshd_config.bak
+  fi
+  cp sshd_config.bak sshd_config
+  sed -i "s|^ChallengeResponseAuthentication.*$|ChallengeResponseAuthentication yes|g" sshd_config
+  sudo cp sshd_config /etc/ssh/sshd_config
+  rm sshd_config
+  sudo systemctl restart sshd.service
+  print_info "Please save the TOTP information above in 'Google Authenticator' alike app"
+  print_info "==> Open another SSH session to test the 2FA authentication"
+  print_warn "==> But do not close this SSH session!!!"
+  if ! ask "Is the 2FA authentication working correctly?";then
+    die "SSH 2FA doesn't work, abort this program"
+  fi
 fi
