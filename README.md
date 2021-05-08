@@ -22,7 +22,7 @@ chmod +x ./setup.sh
   - [ ] Disallow password authentication
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
   - [ ] Setup fail2ban for SSH
-  - [ ] Enable 2FA (google authenticator)
+  - [x] Enable 2FA (google authenticator)
   
 
 - [ ] Install Docker environment
