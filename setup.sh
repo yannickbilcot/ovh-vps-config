@@ -96,6 +96,17 @@ function input {
 }
 ############################################################
 
+# function to restore the SSH configuration
+function restore_ssh_config() {
+  if [ -f sshd.bak -a -f sshd_config.bak ]; then
+    sudo cp sshd.bak /etc/pam.d/sshd
+    sudo cp sshd_config.bak /etc/ssh/sshd_config
+    sudo rm sshd.bak
+    sudo rm sshd_config.bak
+    print_warn "SSH backup configuration restored!"
+  fi
+}
+
 # function to setup SSH key authentication
 function setup_ssk_key() {
   print_info "Generate a SSH key pair on client side with 'ssh-keygen'"
@@ -106,6 +117,8 @@ function setup_ssk_key() {
   print_info "==> Open another SSH session to test the SSH Key authentication"
   print_warn "==> But do not close this SSH session!!!"
   if ! ask "Is the authentication via SSH key working correctly?";then
+    restore_ssh_config
+    sed -i "s|$input_reply||g" ~/.ssh/authorized_keys
     die "SSH key authentication doesn't work, abort this program"
   fi
 }
@@ -113,6 +126,10 @@ function setup_ssk_key() {
 ############################################################
 # main
 ############################################################
+
+# globals
+ssh_2fa_enable=false
+
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
     die "This script only support Ubuntu 20.04"
@@ -180,29 +197,37 @@ if ask "Do you want to enable SSH 2FA ?" Y;then
   if [ ! -f sshd.bak ]; then
     sudo cp /etc/pam.d/sshd sshd.bak
   fi
-  cp sshd.bak sshd
-  echo "auth required pam_google_authenticator.so nullok" >> sshd
-  echo "auth required pam_permit.so" >> sshd
-  sudo cp sshd /etc/pam.d/sshd
-  rm sshd
+  echo "auth required pam_google_authenticator.so nullok" | sudo tee -a /etc/pam.d/sshd > /dev/null
+  echo "auth required pam_permit.so" | sudo tee -a /etc/pam.d/sshd > /dev/null
   if [ ! -f sshd_config.bak ]; then
     sudo cp /etc/ssh/sshd_config sshd_config.bak
   fi
-  cp sshd_config.bak sshd_config
-  sed -i "s|^ChallengeResponseAuthentication.*$|ChallengeResponseAuthentication yes|g" sshd_config
-  sudo cp sshd_config /etc/ssh/sshd_config
-  rm sshd_config
+  sudo sed -i "s|^ChallengeResponseAuthentication.*$|ChallengeResponseAuthentication yes|g" /etc/ssh/sshd_config
   sudo systemctl restart sshd.service
   print_info "Please save the TOTP information above in 'Google Authenticator' alike app"
   print_info "==> Open another SSH session to test the 2FA authentication"
   print_warn "==> But do not close this SSH session!!!"
   if ! ask "Is the 2FA authentication working correctly?";then
+    restore_ssh_config
     die "SSH 2FA doesn't work, abort this program"
   fi
+  ssh_2fa_enable=true
 fi
 
 # Setup SSH Keys
 if ask "Do you want to enable authentication via SSH keys?" Y;then
+  if [ "$ssh_2fa_enable" = true ]; then
+    # update ssh config to support SSH key + 2FA authentication
+    if [ ! -f sshd.bak ]; then
+      sudo cp /etc/pam.d/sshd sshd.bak
+    fi
+    sudo sed -i "s|^@include common-auth$|#@include common-auth|g" /etc/pam.d/sshd
+    if [ ! -f sshd_config.bak ]; then
+      sudo cp /etc/ssh/sshd_config sshd_config.bak
+    fi
+    echo "AuthenticationMethods publickey,password publickey,keyboard-interactive" | sudo tee -a /etc/ssh/sshd_config > /dev/null
+    sudo systemctl restart sshd.service
+  fi
   setup_ssk_key
   while ask "Do you want to add another SSH key client?";do
     setup_ssk_key
