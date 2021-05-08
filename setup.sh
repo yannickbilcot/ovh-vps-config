@@ -96,6 +96,23 @@ function input {
 }
 ############################################################
 
+# function to setup SSH key authentication
+function setup_ssk_key() {
+  print_info "Generate a SSH key pair on client side with 'ssh-keygen'"
+  input "Copy-paste the client public key (id_rsa.pub) just here"
+  mkdir -p ~/.ssh
+  echo "${input_reply}" >> ~/.ssh/authorized_keys
+  chmod -R go= ~/.ssh
+  print_info "==> Open another SSH session to test the SSH Key authentication"
+  print_warn "==> But do not close this SSH session!!!"
+  if ! ask "Is the authentication via SSH key working correctly?";then
+    die "SSH key authentication doesn't work, abort this program"
+  fi
+}
+
+############################################################
+# main
+############################################################
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
     die "This script only support Ubuntu 20.04"
@@ -182,4 +199,12 @@ if ask "Do you want to enable SSH 2FA ?" Y;then
   if ! ask "Is the 2FA authentication working correctly?";then
     die "SSH 2FA doesn't work, abort this program"
   fi
+fi
+
+# Setup SSH Keys
+if ask "Do you want to enable authentication via SSH keys?" Y;then
+  setup_ssk_key
+  while ask "Do you want to add another SSH key client?";do
+    setup_ssk_key
+  done
 fi
