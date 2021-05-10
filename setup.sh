@@ -233,3 +233,11 @@ if ask "Do you want to enable authentication via SSH keys?" Y;then
     setup_ssk_key
   done
 fi
+
+# Setup fail2ban for SSH
+if ask "Do you want to install fail2ban to protect SSH?" Y;then
+  sudo apt -y install fail2ban
+  sudo systemctl enable fail2ban
+  sudo systemctl start fail2ban
+  sudo fail2ban-client status sshd
+fi
