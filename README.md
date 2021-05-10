@@ -22,7 +22,7 @@ cd ovh-vps-config
   - [x] Authentication via SSH keys
   - [x] Disallow password authentication
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
-  - [ ] Setup fail2ban for SSH
+  - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
   
 
