@@ -97,7 +97,7 @@ function input {
 ############################################################
 
 # function to restore the SSH configuration
-function restore_ssh_config() {
+function restore_ssh_configs {
   if [ -f sshd.bak -a -f sshd_config.bak ]; then
     sudo cp sshd.bak /etc/pam.d/sshd
     sudo cp sshd_config.bak /etc/ssh/sshd_config
@@ -108,7 +108,7 @@ function restore_ssh_config() {
 }
 
 # function to setup SSH key authentication
-function setup_ssk_key() {
+function setup_ssk_key {
   print_info "Generate a SSH key pair on client side with 'ssh-keygen'"
   input "Copy-paste the client public key (id_rsa.pub) just here"
   mkdir -p ~/.ssh
@@ -123,12 +123,22 @@ function setup_ssk_key() {
   fi
 }
 
+# function to update and install software
+function install {
+  if [ "$apt_update_done" = false ]; then
+    sudo apt update
+    apt_update_done=true
+ fi
+ sudo apt -y install "$1"
+}
+
 ############################################################
 # main
 ############################################################
 
 # globals
 ssh_2fa_enable=false
+apt_update_done=false
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
@@ -144,6 +154,7 @@ fi
 if ask "Do you want to update and upgrade the OS software?" Y;then
   print_info "apt update"
   sudo apt -y update
+  apt_update_done=true
   print_info "apt upgrade"
   sudo apt -y upgrade
 fi
@@ -151,7 +162,7 @@ fi
 # Git configuration
 if ask "Setup Git configuration?" Y;then
   print_info "Git setup"
-  sudo apt -y install git
+  install git
   cp gitconfig ~/.gitconfig
   input "Enter your Git username" "John Doe"
   git config --global user.name "${input_reply}"
@@ -185,7 +196,7 @@ fi
 # Enable SSH 2FA
 if ask "Do you want to enable SSH 2FA ?" Y;then
   print_info "install google-authenticator"
-  sudo apt -y install libpam-google-authenticator
+  install "libpam-google-authenticator"
   # google-authenticator settings
   # -t => Time based counter
   # -d => Disallow token reuse
@@ -236,8 +247,13 @@ fi
 
 # Setup fail2ban for SSH
 if ask "Do you want to install fail2ban to protect SSH?" Y;then
-  sudo apt -y install fail2ban
+  install fail2ban
   sudo systemctl enable fail2ban
   sudo systemctl start fail2ban
   sudo fail2ban-client status sshd
+fi
+
+# Setup PSAD
+if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
+  install psad
 fi
