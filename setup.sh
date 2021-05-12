@@ -255,10 +255,10 @@ fi
 
 # Setup PSAD
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
+  psad_email_alert_enable=false
   if ask "Do you want to receive email alerts?" Y;then
     echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
-    input "Please enter the email addressses to receive the alerts (comma separated list)"
-    email_addresses="$input_reply"
+    psad_email_alert_enable=true
   else
     echo postfix postfix/main_mailer_type string "Local only" | sudo debconf-set-selections
   fi
@@ -270,7 +270,11 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   fi
   print_info "Install psad"
   install psad
-  sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_addresses;|g" /etc/psad/psad.conf
+  print_info "Configure psad"
+  if [ "$psad_email_alert_enable" = true ]; then
+    input "Please enter the email addressses to receive the alerts (comma separated list)"
+    sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $input_reply;|g" /etc/psad/psad.conf
+  fi
   sudo sed -i "s|^HOSTNAME .*|HOSTNAME $HOSTNAME;|g" /etc/psad/psad.conf
   sudo sed -i "s|^IPT_SYSLOG_FILE .*|IPT_SYSLOG_FILE /var/log/syslog;|g" /etc/psad/psad.conf
   sudo sed -i "s|^ENABLE_AUTO_IDS .*|ENABLE_AUTO_IDS Y;|g" /etc/psad/psad.conf
