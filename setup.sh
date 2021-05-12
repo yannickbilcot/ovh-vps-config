@@ -195,7 +195,7 @@ fi
 
 # Enable SSH 2FA
 if ask "Do you want to enable SSH 2FA ?" Y;then
-  print_info "install google-authenticator"
+  print_info "Install google-authenticator"
   install "libpam-google-authenticator"
   # google-authenticator settings
   # -t => Time based counter
@@ -255,5 +255,28 @@ fi
 
 # Setup PSAD
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
+  if ask "Do you want to receive email alerts?" Y;then
+    echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
+    input "Please enter the email addressses to receive the alerts (comma separated list)"
+    email_addresses="$input_reply"
+  else
+    echo postfix postfix/main_mailer_type string "Local only" | sudo debconf-set-selections
+  fi
+  if ask "Do you have a domain name for your VPS" N;then
+    input "Please enter your VPS FQDN"
+    echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
+  else
+    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+  fi
+  print_info "Install psad"
   install psad
+  sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_addresses;|g" /etc/psad/psad.conf
+  sudo sed -i "s|^HOSTNAME .*|HOSTNAME $HOSTNAME;|g" /etc/psad/psad.conf
+  sudo sed -i "s|^IPT_SYSLOG_FILE .*|IPT_SYSLOG_FILE /var/log/syslog;|g" /etc/psad/psad.conf
+  sudo sed -i "s|^ENABLE_AUTO_IDS .*|ENABLE_AUTO_IDS Y;|g" /etc/psad/psad.conf
+  print_info "Update PSAD signatures"
+  sudo systemctl enable psad
+  sudo systemctl start psad
+  sudo psad --sig-update
+  sudo systemctl status psad
 fi
