@@ -280,7 +280,8 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   sudo sed -i "s|^ENABLE_AUTO_IDS .*|ENABLE_AUTO_IDS Y;|g" /etc/psad/psad.conf
   print_info "Update PSAD signatures"
   sudo systemctl enable psad
-  sudo systemctl start psad
   sudo psad --sig-update
-  sudo systemctl status psad
+  sudo systemctl restart psad
+  print_info "PSAD status"
+  sudo psad -S
 fi
