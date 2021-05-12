@@ -24,6 +24,7 @@ cd ovh-vps-config
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
   - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
+  - [ ] Email alert on SSH login 
   
 
 - [ ] Install Docker environment
