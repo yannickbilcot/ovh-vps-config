@@ -268,9 +268,9 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   else
     echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
   fi
-  print_info "Install psad"
+  print_info "Install PSAD"
   install psad
-  print_info "Configure psad"
+  print_info "Configure PSAD"
   if [ "$psad_email_alert_enable" = true ]; then
     input "Please enter the email addressses to receive the alerts (comma separated list)"
     sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $input_reply;|g" /etc/psad/psad.conf
