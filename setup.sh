@@ -305,6 +305,19 @@ EOF
   fi
 fi
 
+# Setup SSH login alerts
+if ask "Do you want to receive email alert on SSH login?" Y;then
+  print_info "Setup SSH login alert"
+  sudo mkdir -p /etc/pam.scripts
+  sudo chmod 0755 /etc/pam.scripts
+  sudo cp ssh_email_alert.sh /etc/pam.scripts
+  sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
+  sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
+  echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
+  print_info "Open another SSH session to test the SSH login email alert"
+  input "When done, press 'Enter' to continue" " "
+fi
+
 # Setup PSAD
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   if [ "$email_alert_enable" = false ]; then
