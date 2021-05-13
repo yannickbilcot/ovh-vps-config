@@ -18,6 +18,7 @@ cd ovh-vps-config
 - [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
+- [x] Setup email alerts
 - [ ] SSH configuration
   - [x] Authentication via SSH keys
   - [x] Disallow password authentication
