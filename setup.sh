@@ -261,10 +261,11 @@ if ask "Do you want to install fail2ban to protect SSH?" Y;then
 fi
 
 # Setup email alerts
-if ask "Do you want to setup email alerts from this server?\n- email will be relayed through Gmail SMTP server" Y;then
+if ask "Do you want to receive email alerts from this server?\n- email will be relayed through Gmail SMTP server" Y;then
   input "Please enter the email addressses to receive the alerts (comma separated list)"
   sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
-  echo "EMAIL_RECIPIENTS=${input_reply}" | sudo tee -a /etc/environment > /dev/null
+  email_recipients="${input_reply}"
+  echo "EMAIL_RECIPIENTS=${email_recipients}" | sudo tee -a /etc/environment > /dev/null
   email_alert_enable=true
   echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
   if ask "Do you have a domain name for your VPS?";then
@@ -306,25 +307,20 @@ fi
 
 # Setup PSAD
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
-  psad_email_alert_enable=false
-  if ask "Do you want to receive email alerts?" Y;then
-    echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
-    psad_email_alert_enable=true
-  else
-    echo postfix postfix/main_mailer_type string "Local only" | sudo debconf-set-selections
-  fi
-  if ask "Do you have a domain name for your VPS" N;then
-    input "Please enter your VPS FQDN"
-    echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
-  else
-    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+  if [ "$email_alert_enable" = false ]; then
+    echo postfix postfix/main_mailer_type string Local only | sudo debconf-set-selections
+    if ask "Do you have a domain name for your VPS";then
+      input "Please enter your VPS FQDN"
+      echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
+    else
+      echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+    fi
   fi
   print_info "Install PSAD"
   install psad
   print_info "Configure PSAD"
-  if [ "$psad_email_alert_enable" = true ]; then
-    input "Please enter the email addressses to receive the alerts (comma separated list)"
-    sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $input_reply;|g" /etc/psad/psad.conf
+  if [ "$email_alert_enable" = true ]; then
+    sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_recipients;|g" /etc/psad/psad.conf
   fi
   sudo sed -i "s|^HOSTNAME .*|HOSTNAME $HOSTNAME;|g" /etc/psad/psad.conf
   sudo sed -i "s|^IPT_SYSLOG_FILE .*|IPT_SYSLOG_FILE /var/log/syslog;|g" /etc/psad/psad.conf
