@@ -63,7 +63,7 @@ The following user signed to your server via SSH, please review the information 
 <p>
 <h3>Whois information</h3>
 <div class="whois">
-$(whois ${PAM_RHOST} | awk '!/^(%|$)/ {print $0"</br>"}')
+$(whois ${PAM_RHOST} | awk '{print $0"</br>"}')
 </div>
 </p>
 <p>
