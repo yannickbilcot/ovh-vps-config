@@ -84,7 +84,13 @@ function input {
   fi
   while true; do
       echo -ne "\e[33m$1$prompt: \e[0m"
-      read -r input_reply </dev/tty
+      # secure input for password
+      if [[ -n $3 ]]; then
+        read -rs input_reply </dev/tty
+        echo ""
+      else
+        read -r input_reply </dev/tty
+      fi
       if [[ -z $input_reply ]]; then
           input_reply=$default
       fi
@@ -118,7 +124,7 @@ function setup_ssk_key {
   print_warn "==> But do not close this SSH session!!!"
   if ! ask "Is the authentication via SSH key working correctly?";then
     restore_ssh_config
-    sed -i "s|$input_reply||g" ~/.ssh/authorized_keys
+    sed -i "/$input_reply/d" ~/.ssh/authorized_keys
     die "SSH key authentication doesn't work, abort this program"
   fi
 }
@@ -139,6 +145,7 @@ function install {
 # globals
 ssh_2fa_enable=false
 apt_update_done=false
+email_alert_enable=false
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
@@ -251,6 +258,50 @@ if ask "Do you want to install fail2ban to protect SSH?" Y;then
   sudo systemctl enable fail2ban
   sudo systemctl start fail2ban
   sudo fail2ban-client status sshd
+fi
+
+# Setup email alerts
+if ask "Do you want to setup email alerts from this server?\n- email will be relayed through Gmail SMTP server" Y;then
+  input "Please enter the email addressses to receive the alerts (comma separated list)"
+  sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
+  echo "EMAIL_RECIPIENTS=${input_reply}" | sudo tee -a /etc/environment > /dev/null
+  email_alert_enable=true
+  echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
+  if ask "Do you have a domain name for your VPS?";then
+    input "Please enter your VPS FQDN"
+    echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
+  else
+    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+  fi
+  print_info "Install postfix"
+  install postfix
+  print_info "Configure postfix"
+  sudo sed -i '/^relayhost =.*/,$d' /etc/postfix/main.cf
+  postfix_conf=$(cat <<EOF
+relayhost = [smtp.gmail.com]:587
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+smtp_tls_CAfile = /etc/postfix/cacert.pem
+smtp_use_tls = yes
+EOF
+)
+  echo "$postfix_conf" | sudo tee -a /etc/postfix/main.cf > /dev/null
+  input "Please enter your Gmail email" "john.doe@gmail.com"
+  gmail_email="$input_reply"
+  print_warn "To create a Gmail appication password check this link: https://devanswers.co/create-application-specific-password-gmail/"
+  input "Please enter your generated app password (hidden)" "" "password"
+  gmail_password="$input_reply"
+  echo "[smtp.gmail.com]:587 ${gmail_email}:${gmail_password}" | sudo tee /etc/postfix/sasl_passwd > /dev/null
+  sudo postmap /etc/postfix/sasl_passwd
+  sudo chown root:root /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
+  sudo chmod 0600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
+  print_info "Sign certificate"
+  cat /etc/ssl/certs/GlobalSign_Root_CA_-_R2.pem | sudo tee -a /etc/postfix/cacert.pem > /dev/null
+  if ask "Do you want to send a test email to '${gmail_email}'?" Y;then
+    echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" ${gmail_email}
+    print_info "email sent!"
+  fi
 fi
 
 # Setup PSAD
