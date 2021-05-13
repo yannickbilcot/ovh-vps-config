@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 SUBJECT="[$HOSTNAME] SSH notification: successful login from IP ${PAM_RHOST}"
 
