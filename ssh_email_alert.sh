@@ -4,24 +4,62 @@ SUBJECT="[$(hostname)] SSH notification: successful login from IP ${PAM_RHOST}"
 
 BODY="$(cat <<EOF
 <html>
-<body style="font: small/ 1.5 Arial,Helvetica,sans-serif;padding: 15px;">
-  <h1 style="font: small/ 1.5 Arial,Helvetica,sans-serif normal;">SSH Login successful</h1>
+<head>
+<style>
+body {
+  font: small/ 1.5 Arial,Helvetica,sans-serif;
+  padding: 15px;
+}
+h1,h2,h3,h4,h5,h6 {
+  font: small/ 1.5 Arial,Helvetica,sans-serif normal;
+}
+a {
+  color: #15c;
+  cursor: pointer;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+table {
+  font-size: small;
+}
+.whois {
+  display: inline-block;
+  font-family: monospace;
+  line-height: 1.3em;
+  word-spacing: .01em;
+  word-wrap: break-word;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border: 1px solid #e3e3e3;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+.key {
+  color: #76808f;
+  text-align: right;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+  <h1>SSH Login successful</h1>
   <p>The following user signed to your server via SSH, please review the information below:</p>
-  <p>
-    <table style="font-size: small;">
-      <tr><td class="key" style="color: #76808f;text-align: right;padding-right: 5px;">User:</td><td>${PAM_USER}</td></tr>
-      <tr><td class="key" style="color: #76808f;text-align: right;padding-right: 5px;">IP Address:</td><td>${PAM_RHOST}</td></tr>
-      <tr><td class="key" style="color: #76808f;text-align: right;padding-right: 5px;">Service:</td><td>${PAM_SERVICE}</td></tr>
-      <tr><td class="key" style="color: #76808f;text-align: right;padding-right: 5px;">Time:</td><td>$(date +'%Y-%m-%d %T (%Z)')</td></tr>
+  <div>
+    <table>
+      <tr><td class="key">User:</td><td></td></tr>
+      <tr><td class="key">IP Address:</td><td></td></tr>
+      <tr><td class="key">Service:</td><td></td></tr>
+      <tr><td class="key">Time:</td><td>2021-05-14 11:18:37(CST)</td></tr>
     </table>
-  </p>
-  <p>
-    <h3 style="font: small/ 1.5 Arial,Helvetica,sans-serif normal;">Whois information</h3>
-    <div class="whois" style="display: inline-block;font-family: monospace;line-height: 1.3em;word-spacing: .01em;word-wrap: break-word;padding: 15px;background-color: #f5f5f5;border: 1px solid #e3e3e3;box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);">
+  </div>
+  <div>
+    <h3>Whois information</h3>
+    <div class="whois">
 $(whois ${PAM_RHOST} | awk '{print $0"<br>"}')
     </div>
-  </p>
-  <p>If you don't recognize this activity, your server might be compromised.</p>
+    <p>If you don't recognize this activity, your server might be compromised.</p>
+  </div>
 </body>
 </html>
 EOF
