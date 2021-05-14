@@ -4,8 +4,8 @@ SUBJECT="[$(hostname)] SSH notification: successful login from IP ${PAM_RHOST}"
 
 BODY="$(cat <<EOF
 <html>
-<body style="font: 13px arial, sans-serif;padding: 15px;">
-  <h1 style="color: #000;font: 16px/24px arial, sans-serif normal;">SSH Login successful</h1>
+<body style="font: small/ 1.5 Arial,Helvetica,sans-serif;padding: 15px;">
+  <h1 style="font: small/ 1.5 Arial,Helvetica,sans-serif;">SSH Login successful</h1>
   <p>The following user signed to your server via SSH, please review the information below:</p>
   <p>
     <table style="font-size: 13px;">
@@ -16,7 +16,7 @@ BODY="$(cat <<EOF
     </table>
   </p>
   <p>
-    <h3 style="color: #000;font: 16px/24px arial, sans-serif normal;">Whois information</h3>
+    <h3 style="font: small/ 1.5 Arial,Helvetica,sans-serif;">Whois information</h3>
     <div class="whois" style="display: inline-block;font-family: monospace;line-height: 1.3em;word-spacing: .01em;word-wrap: break-word;padding: 15px;background-color: #f5f5f5;border: 1px solid #e3e3e3;box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);">
 $(whois ${PAM_RHOST} | awk '{print $0"<br>"}')
     </div>
