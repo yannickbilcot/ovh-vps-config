@@ -178,6 +178,13 @@ if ask "Setup Git configuration?" Y;then
   git config --global credential.username "${input_reply}"
 fi
 
+# Set the timezone
+if ask "Do you want to set your server local timzone?" Y;then
+  print_info "Select your timezone from the list below:"
+  tz=$(tzselect|tail -1)
+  sudo timedatectl set-timezone "$tz"
+fi
+
 # Change user password
 if ask "Do you want to change current user password?" Y;then
   passwd
