@@ -47,10 +47,10 @@ table {
   <p>The following user signed to your server via SSH, please review the information below:</p>
   <div>
     <table>
-      <tr><td class="key">User:</td><td></td></tr>
-      <tr><td class="key">IP Address:</td><td></td></tr>
-      <tr><td class="key">Service:</td><td></td></tr>
-      <tr><td class="key">Time:</td><td>2021-05-14 11:18:37(CST)</td></tr>
+      <tr><td class="key">User:</td><td>${PAM_USER}</td></tr>
+      <tr><td class="key">IP Address:</td><td>${PAM_RHOST}</td></tr>
+      <tr><td class="key">Service:</td><td></td>${PAM_SERVICE}</tr>
+      <tr><td class="key">Time:</td><td>$(date +'%Y-%m-%d %T (%Z)')</td></tr>
     </table>
   </div>
   <div>
