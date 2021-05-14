@@ -20,15 +20,18 @@ cd ovh-vps-config
 - [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
+
 - [x] Setup email alerts
+  - [ ] alert after server reboot
+  - [x] alert on SSH login
+
 - [ ] SSH configuration
   - [x] Authentication via SSH keys
   - [x] Disable password authentication
   - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
   - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
-  - [x] Email alert on SSH login
-  
+
 
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
