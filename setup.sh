@@ -166,8 +166,35 @@ if ask "Do you want to update and upgrade the OS software?" Y;then
   sudo apt -y upgrade
 fi
 
+# Change user password
+if ask "Do you want to change the current user password?" Y;then
+  passwd
+fi
+
+# Create a new user
+if ask "Do you want to create a new user on this server?" N;then
+  input "Please enter the new user name"
+  sudo adduser --gecos "" "$input_reply"
+  sudo usermod -aG sudo "$input_reply"
+  if ask "Reply 'Y' if you want to continue the configuration for the new user (this script will exit)?" Y;then
+    print_warn "Please re-open a SSH session with the newly created user and execute this script again."
+    exit 0
+  fi
+fi
+
+# Delete an user
+if ask "Do you want to delete other user(s) on this server?" N;then
+  echo "$(eval getent passwd {$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)} | cut -d: -f1 | grep -v $USER)"
+  input "Please enter the user you want to delete from the list above (the home folder will be deleted)"
+  sudo deluser --remove-home "$input_reply"
+  while ask "Do you want to delete another user?";do
+    input "Please type the user you want to delete (home folder will be deleted)"
+    sudo deluser --remove-home "$input_reply"
+  done
+fi
+
 # Git configuration
-if ask "Setup Git configuration?" Y;then
+if ask "Do you want to install and configure Git?" Y;then
   print_info "Git setup"
   install git
   cp gitconfig ~/.gitconfig
@@ -179,19 +206,14 @@ if ask "Setup Git configuration?" Y;then
 fi
 
 # Set the timezone
-if ask "Do you want to set your server local timzone?" Y;then
+if ask "Do you want to configure this server local timezone?" Y;then
   print_info "Select your timezone from the list below:"
   tz=$(tzselect|tail -1)
   sudo timedatectl set-timezone "$tz"
 fi
 
-# Change user password
-if ask "Do you want to change current user password?" Y;then
-  passwd
-fi
-
 # Enable IPv6
-if ask "Do you have a public IPv6 address?" Y;then
+if ask "Do you want to enable and configure the IPv6 network?" Y;then
   print_info "Configure the static IPv6 network"
   public_iface=$(ip route show default | awk '/default/ {print $5}')
   input "Enter the default route interface" "${public_iface}"
@@ -268,7 +290,7 @@ if ask "Do you want to install fail2ban to protect SSH?" Y;then
 fi
 
 # Setup email alerts
-if ask "Do you want to receive email alerts from this server?\n- email will be relayed through Gmail SMTP server" Y;then
+if ask "Do you want to receive email alerts from this server (only support Gmail SMTP server)?" Y;then
   input "Please enter the email addressses to receive the alerts (comma separated list)"
   sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
   email_recipients="${input_reply}"
@@ -313,7 +335,7 @@ EOF
 fi
 
 # Setup SSH login alerts
-if ask "Do you want to receive email alert on SSH login?" Y;then
+if ask "Do you want to receive email alerts on SSH login?" Y;then
   print_info "Setup SSH login alert"
   sudo mkdir -p /etc/pam.scripts
   sudo chmod 0755 /etc/pam.scripts
@@ -321,7 +343,7 @@ if ask "Do you want to receive email alert on SSH login?" Y;then
   sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
   sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
   echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
-  print_info "Open another SSH session to test the SSH login email alert"
+  print_info "Open another SSH session if you want to test the SSH login email alert"
   input "When done, press 'Enter' to continue" " "
 fi
 
