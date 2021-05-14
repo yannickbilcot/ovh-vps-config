@@ -4,6 +4,7 @@ SUBJECT="[$(hostname)] SSH notification: successful login from IP ${PAM_RHOST}"
 
 BODY="$(cat <<EOF
 <html>
+<head>
 <style>
 body {
   margin: 25px auto 25px auto;
@@ -44,6 +45,7 @@ table {
   font-size: 13px;
 }
 </style>
+</head>
 <body>
   <h1>SSH Login successful</h1>
   <p>The following user signed to your server via SSH, please review the information below:</p>
