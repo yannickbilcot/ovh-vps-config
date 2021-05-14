@@ -15,6 +15,7 @@ cd ovh-vps-config
 
 - [x] GIT configuration
 - [x] Change default user password
+- [x] Create and delete user(s)
 - [x] Setup the server timezone
 - [ ] Setup the server hostname and FQDN
 - [x] Enable IPv6
