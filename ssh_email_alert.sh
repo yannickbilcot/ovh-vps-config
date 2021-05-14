@@ -49,7 +49,7 @@ table {
     <table>
       <tr><td class="key">User:</td><td>${PAM_USER}</td></tr>
       <tr><td class="key">IP Address:</td><td>${PAM_RHOST}</td></tr>
-      <tr><td class="key">Service:</td><td></td>${PAM_SERVICE}</tr>
+      <tr><td class="key">Service:</td><td>${PAM_SERVICE}</td></tr>
       <tr><td class="key">Time:</td><td>$(date +'%Y-%m-%d %T (%Z)')</td></tr>
     </table>
   </div>
