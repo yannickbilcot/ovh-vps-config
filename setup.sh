@@ -313,12 +313,7 @@ if ask "Do you want to receive email alerts from this server (only support Gmail
   echo "EMAIL_RECIPIENTS=${email_recipients}" | sudo tee -a /etc/environment > /dev/null
   email_alert_enable=true
   echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
-  if ask "Do you have a domain name for your VPS?";then
-    input "Please enter your VPS FQDN"
-    echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
-  else
-    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
-  fi
+  echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
   print_info "Install postfix"
   install postfix
   print_info "Configure postfix"
@@ -373,12 +368,7 @@ fi
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   if [ "$email_alert_enable" = false ]; then
     echo postfix postfix/main_mailer_type string Local only | sudo debconf-set-selections
-    if ask "Do you have a domain name for your VPS";then
-      input "Please enter your VPS FQDN"
-      echo postfix postfix/mailname string $input_reply | sudo debconf-set-selections
-    else
-      echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
-    fi
+    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
   fi
   print_info "Install PSAD"
   install psad
