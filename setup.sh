@@ -379,10 +379,15 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   print_info "Configure PSAD"
   if [ "$email_alert_enable" = true ]; then
     sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_recipients;|g" /etc/psad/psad.conf
+    # Set danger Level to 5
+    sudo sed -i "s|^EMAIL_ALERT_DANGER_LEVEL .*|EMAIL_ALERT_DANGER_LEVEL 5;|g" /etc/psad/psad.conf
   fi
   sudo sed -i "s|^HOSTNAME .*|HOSTNAME $HOSTNAME;|g" /etc/psad/psad.conf
   sudo sed -i "s|^IPT_SYSLOG_FILE .*|IPT_SYSLOG_FILE /var/log/syslog;|g" /etc/psad/psad.conf
   sudo sed -i "s|^ENABLE_AUTO_IDS .*|ENABLE_AUTO_IDS Y;|g" /etc/psad/psad.conf
+  # ignore these IPs
+  echo "127.0.0.0/8 0;" | sudo tee -a /etc/psad/auto_dl > /dev/null
+  echo "::1 0;" | sudo tee -a /etc/psad/auto_dl > /dev/null
   print_info "Update PSAD signatures"
   sudo systemctl enable psad
   sudo psad --sig-update
