@@ -17,7 +17,7 @@ cd ovh-vps-config
 - [x] Change default user password
 - [x] Create and delete user(s)
 - [x] Setup the server timezone
-- [ ] Setup the server hostname and FQDN
+- [x] Setup the server hostname and FQDN
 - [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
