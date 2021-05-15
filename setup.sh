@@ -363,6 +363,12 @@ if ask "Do you want to receive email alerts on SSH login?" Y;then
   input "When done, press 'Enter' to continue" " "
 fi
 
+# Setup alert on reboot
+if ask "Do you want to receive email alert on reboot?" Y;then
+  print "Setup reboot email alert"
+  (sudo crontab -l 2>/dev/null; echo "@reboot echo \"Please check your server if the reboot was not expected.\" | mail -s \"[\$(hostname)] System was rebooted on \$(date)\" \$EMAIL_RECIPIENTS") | sudo crontab -u root -
+fi
+
 # Setup PSAD
 if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   if [ "$email_alert_enable" = false ]; then
