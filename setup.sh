@@ -205,6 +205,22 @@ if ask "Do you want to install and configure Git?" Y;then
   git config --global credential.username "${input_reply}"
 fi
 
+# Set the hostname and FQDN
+if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y;then
+  input "Enter the new hostname"
+  new_hostname="$input_reply"
+  sudo hostnamectl set-hostname "$new_hostname"
+  input "Enter your server FQDN" "exemple.org"
+  sudo sed -i "s|^127\.0\.1\.1.*$|127\.0\.1\.1 $new_hostname\.$input_reply $new_hostname|g" /etc/hosts
+  print_info "hostname:"
+  hostname
+  print_info "FQDN:"
+  hostname -f
+  print_info "DNS domain name:"
+  dnsdomainname
+  input "Please review the information above and press enter when done" " "
+fi
+
 # Set the timezone
 if ask "Do you want to configure this server local timezone?" Y;then
   print_info "Select your timezone from the list below:"
