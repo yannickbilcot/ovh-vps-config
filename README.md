@@ -21,7 +21,7 @@ cd ovh-vps-config
 - [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
-- [ ] Setup PSAD (Port Scan Attack Detection)
+- [x] Setup PSAD (Port Scan Attack Detection)
 
 - [x] Setup email alerts
   - [ ] alert after server reboot
@@ -30,26 +30,21 @@ cd ovh-vps-config
 - [ ] SSH configuration
   - [x] Authentication via SSH keys
   - [x] Disable password authentication
-  - [ ] Redirect a random tcp port to port 22 (iptables) (IPv4 + IPv6)
+  - [ ] Redirect a random TCP port to port 22
   - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
 
+- [ ] Setup Wireguard
+  - [ ] Add IPv6 support (generate ULA address randomly)
+  - [ ] Add a function to create new Peer(s) (IPv4 and/or IPv6)
+  - [ ] Firewall configuration
+  - [ ] Add IPv6 only support (DNS64 + Stateless [NAT66](https://www.jool.mx/en/intro-xlat.html#siit-traditional))
 
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
-
-
-- [ ] Setup Wireguard
-  - [ ] Add IPv6 support (generate ULA address randomly)
-  - [ ] Add a function to create a new Peer (IPv4 and/or IPv6)
-  - [ ] Firewall configuration
-  - [ ] IPv6 only support (DNS64 + Stateless [NAT66](https://www.jool.mx/en/intro-xlat.html#siit-traditional))
-  
 - [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
 - [ ] Open a WAN port for Torrent
-- [ ] Display some helpers when logging via SSH
 - [ ] Install V2Ray
-
 
 ### Useful commands for debug:
 
