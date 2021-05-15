@@ -24,7 +24,7 @@ cd ovh-vps-config
 - [x] Setup PSAD (Port Scan Attack Detection)
 
 - [x] Setup email alerts
-  - [ ] alert after server reboot
+  - [x] alert after server reboot
   - [x] alert on SSH login
 
 - [ ] SSH configuration
