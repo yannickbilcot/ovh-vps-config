@@ -21,6 +21,7 @@ cd ovh-vps-config
 - [x] Enable IPv6
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
+- [ ] Setup PSAD (Port Scan Attack Detection)
 
 - [x] Setup email alerts
   - [ ] alert after server reboot
@@ -36,7 +37,7 @@ cd ovh-vps-config
 
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
-- [ ] Setup PSAD
+
 
 - [ ] Setup Wireguard
   - [ ] Add IPv6 support (generate ULA address randomly)
