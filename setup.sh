@@ -460,7 +460,7 @@ if ask "Do you want to setup the $network_type firewall?" Y;then
   if [ "$ssh_random_port" = true ]; then
     print_warn "If you want to remove the access to SSH on port 22, connect on SSH port: $new_port, and execute the followings commands manually:"
     echo "sudo iptables -t nat -I PREROUTING -d $wan_ipv4 -i $public_iface -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535"
-    if [ "$ipv6_enable" = true ] && echo "sudo ip6tables -t nat -I PREROUTING -d $wan_ipv6 -i $public_iface -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535"
+    [ "$ipv6_enable" = true ] && echo "sudo ip6tables -t nat -I PREROUTING -d $wan_ipv6 -i $public_iface -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535"
     echo "sudo netfilter-persistent save"
   fi
 fi
