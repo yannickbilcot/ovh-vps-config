@@ -138,6 +138,14 @@ function install {
  sudo apt -y install "$1"
 }
 
+# function wrapper to iptables/ip6tables
+function xtables {
+  if [ "$ipv6_enable" = true ]; then
+    sudo ip6tables "$1"
+  fi
+  sudo iptables "$1"
+}
+
 ############################################################
 # main
 ############################################################
@@ -146,6 +154,8 @@ function install {
 ssh_2fa_enable=false
 apt_update_done=false
 email_alert_enable=false
+ipv6_enable=false
+ssh_random_port=false
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
@@ -243,10 +253,11 @@ if ask "Do you want to enable and configure the IPv6 network?" Y;then
   sudo cp 51-cloud-init-ipv6.yaml /etc/netplan
   sudo netplan try
   sudo netplan apply
+  ipv6_enable=true
 fi
 
 # Enable SSH 2FA
-if ask "Do you want to enable SSH 2FA ?" Y;then
+if ask "Do you want to enable SSH 2FA?" Y;then
   print_info "Install google-authenticator"
   install "libpam-google-authenticator"
   # google-authenticator settings
@@ -390,4 +401,66 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
   sudo systemctl restart psad
   print_info "PSAD status"
   sudo psad -S
+fi
+
+# Setup IPv4/IPv6 Firewall
+network_type="IPv4"
+[ "$ipv6_enable" = true ] && network_type="IPv4 & IPv6"
+if ask "Do you want to setup the $network_type firewall?" Y;then
+  # reset the firewall
+  xtables "-P INPUT ACCEPT"
+  xtables "-P FORWARD ACCEPT"
+  xtables "-P OUTPUT ACCEPT"
+  xtables "-F INPUT"
+  xtables "-F FORWARD"
+  xtables "-F OUTPUT"
+  # make firewall changes persistent
+  echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+  echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+  print_info "Create iptables persitant rules"
+
+  xtables "-A INPUT -i lo -j ACCEPT"
+  xtables "-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+  xtables "-A INPUT -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT"
+  [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -s fe80::/10 -p ipv6-icmp -j ACCEPT
+
+  # Accept ping requests
+  if ask "Do you want to accept incoming 'ping' requests?" Y;then
+    sudo iptables -A INPUT -p icmp --icmp-type 8 -m conntrack --ctstate NEW -j ACCEPT
+    [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp --icmpv6-type 128 -m conntrack --ctstate NEW -j ACCEPT
+  fi
+
+  # Set Random TCP port for SSH server
+  if ask "Do you want to use a random TCP port for SSH server?" Y;then
+    ssh_random_port=true
+    random_port=$(shuf -i 49152-65535 -n 1)
+    input "Press enter or choose another TCP port for SSH" "$random_port"
+    new_port="$input_reply"
+    public_iface=$(ip route show default | awk '/default/ {print $5}')
+    wan_ipv4=$(ip -o a s $public_iface | grep global | awk '{print $4;exit}')
+    sudo iptables -t nat -A PREROUTING -d "$wan_ipv4" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
+    if [ "$ipv6_enable" = true ]; then
+      wan_ipv6=$(ip -o -6 a s $public_iface | grep global | awk '{print $4;exit}')
+      sudo ip6tables -t nat -A PREROUTING -d "$wan_ipv6" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
+    fi
+    print_warn "You can try to open another SSH session with the port: $new_port"
+    input "Press enter to continue" " "
+  fi
+
+  xtables "-A INPUT -j LOG"
+  xtables "-A FORWARD -j LOG"
+  xtables "-P INPUT DROP"
+  xtables "-P FORWARD DROP"
+
+  print_info "Install iptables-persistent"
+  sudo apt install -y iptables-persistent
+  sudo systemctl enable netfilter-persistent
+  sudo netfilter-persistent save
+
+  if [ "$ssh_random_port" = true ]; then
+    print_warn "If you want to remove the access to SSH on port 22, connect on SSH port: $new_port, and execute the followings commands manually:"
+    echo "sudo iptables -t nat -I PREROUTING -d $wan_ipv4 -i $public_iface -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535"
+    if [ "$ipv6_enable" = true ] && echo "sudo ip6tables -t nat -I PREROUTING -d $wan_ipv6 -i $public_iface -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535"
+    echo "sudo netfilter-persistent save"
+  fi
 fi
