@@ -22,6 +22,7 @@ cd ovh-vps-config
 - [ ] Setup IPv6 Firewall
 - [ ] Setup IPv4 Firewall
 - [x] Setup PSAD (Port Scan Attack Detection)
+- [ ] Setup APT automatic update/upgrade
 
 - [x] Setup email alerts
   - [x] alert after server reboot
