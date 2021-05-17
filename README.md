@@ -10,6 +10,13 @@ git clone https://github.com/yannickbilcot/ovh-vps-config.git
 cd ovh-vps-config
 ./setup.sh
 ```
+#### Non-interactive mode
+- Edit the configuration file 'setup.cfg'
+- Start the sprint with the option '-a'
+
+```bash
+./setup.sh -a
+```
 
 ## VPS Configuration
 
@@ -28,7 +35,7 @@ cd ovh-vps-config
   - [x] alert after server reboot
   - [x] alert on SSH login
 
-- [ ] SSH configuration
+- [x] SSH configuration
   - [x] Authentication via SSH keys
   - [x] Disable password authentication
   - [x] Redirect a random TCP port to port 22
