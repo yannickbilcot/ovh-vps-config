@@ -423,7 +423,7 @@ if ask "Do you want to setup the $network_type firewall?" Y;then
   xtables -A INPUT -i lo -j ACCEPT
   xtables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
   xtables -A INPUT -p tcp --dport 22 -j ACCEPT
-  [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -s fe80::/10 -p ipv6-icmp -j ACCEPT
+  [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
 
   # Accept ping requests
   if ask "Do you want to accept incoming 'ping' requests?" Y;then
