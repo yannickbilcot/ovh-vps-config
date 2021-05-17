@@ -19,8 +19,8 @@ cd ovh-vps-config
 - [x] Setup the server timezone
 - [x] Setup the server hostname and FQDN
 - [x] Enable IPv6
-- [ ] Setup IPv6 Firewall
-- [ ] Setup IPv4 Firewall
+- [x] Setup IPv6 Firewall
+- [x] Setup IPv4 Firewall
 - [x] Setup PSAD (Port Scan Attack Detection)
 - [ ] Setup APT automatic update/upgrade
 
@@ -31,7 +31,7 @@ cd ovh-vps-config
 - [ ] SSH configuration
   - [x] Authentication via SSH keys
   - [x] Disable password authentication
-  - [ ] Redirect a random TCP port to port 22
+  - [x] Redirect a random TCP port to port 22
   - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
 
