@@ -481,6 +481,13 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y "CFG_instal
   sudo psad -S
 fi
 
+# Automatic updates
+if ask "Do you want to enable automatic updates?" Y "CFG_enable_auto_updates";then
+  install unattended-upgrades
+  sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
+  sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
+fi
+
 # Setup IPv4/IPv6 Firewall
 network_type="IPv4"
 [ "$ipv6_enable" = true ] && network_type="IPv4 & IPv6"
