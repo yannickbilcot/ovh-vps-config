@@ -502,13 +502,15 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
   xtables -A INPUT -i lo -j ACCEPT
   xtables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
   xtables -A INPUT -p tcp --dport 22 -j ACCEPT
-  [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
 
   # Accept ping requests
   if ask "Do you want to accept incoming 'ping' requests?" Y "CFG_firewall_accept_ping_requests";then
     sudo iptables -A INPUT -p icmp --icmp-type 8 -m conntrack --ctstate NEW -j ACCEPT
-    [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp --icmpv6-type 128 -m conntrack --ctstate NEW -j ACCEPT
+  else
+    [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp --icmpv6-type 128 -m conntrack --ctstate NEW -j DROP
   fi
+  # IPv6 accept all ICMPv6 packets
+  [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
 
   # Set Random TCP port for SSH server
   if ask "Do you want to use a random TCP port for SSH server?" Y "CFG_firewall_change_ssh_port";then
