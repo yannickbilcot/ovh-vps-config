@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ############################################################
 # usage:
-#     setup.sh
+#     setup.sh [-a <setup.cfg>]
 ############################################################
 
 set -e # exit when any command fails
@@ -51,6 +51,21 @@ function die {
 
 function ask {
   local prompt default reply
+
+  if [[ "$non_interactive_mode" = true ]]; then
+    cfg="${!#}"
+    if [ "${!cfg}" = true ]; then
+      echo -ne "\e[32m$1 \e[1;35mYes\e[0m\n"
+      return 0
+    fi
+    if [ "${!cfg}" = false ]; then
+      echo -ne "\e[32m$1 \e[1;35mNo\e[0m\n"
+      return 1
+    fi
+    arg="$#"
+    die "non-interactive mode: \"$1\" [${!arg}]"
+  fi
+
   if [[ ${2:-} = 'Y' ]]; then
       prompt='Y/n'
       default='Y'
@@ -78,6 +93,18 @@ function ask {
 function input {
   local prompt default
   input_reply=""
+
+  if [[ "$non_interactive_mode" = true ]]; then
+    cfg="${!#}"
+    if [ -n "${!cfg}" ]; then
+      echo -ne "\e[33m$1: \e[1;35m${!cfg}\e[0m\n"
+      input_reply="${!cfg}"
+      return
+    fi
+    arg="$#"
+    die "non-interactive mode: \"$1\" [${!arg}]"
+  fi
+
   if [[ -n $2 ]]; then
     default="$2"
     prompt=" [$2]"
@@ -85,7 +112,7 @@ function input {
   while true; do
       echo -ne "\e[33m$1$prompt: \e[0m"
       # secure input for password
-      if [[ -n $3 ]]; then
+      if [[ "$3" = "password" ]]; then
         read -rs input_reply </dev/tty
         echo ""
       else
@@ -104,20 +131,26 @@ function input {
 
 # function to restore the SSH configuration
 function restore_ssh_configs {
-  if [ -f sshd.bak -a -f sshd_config.bak ]; then
-    sudo cp sshd.bak /etc/pam.d/sshd
-    sudo cp sshd_config.bak /etc/ssh/sshd_config
-    sudo rm sshd.bak
-    sudo rm sshd_config.bak
+  if [ -f $DIR/sshd.bak -a -f $DIR/sshd_config.bak ]; then
+    sudo cp $DIR/sshd.bak /etc/pam.d/sshd
+    sudo cp $DIR/sshd_config.bak /etc/ssh/sshd_config
+    sudo rm $DIR/sshd.bak
+    sudo rm $DIR/sshd_config.bak
     print_warn "SSH backup configuration restored!"
   fi
 }
 
 # function to setup SSH key authentication
 function setup_ssk_key {
+  mkdir -p ~/.ssh
+  if [ "$non_interactive_mode" = true ]; then
+    for key in "${CFG_ssh_public_keys_list[@]}"; do
+      echo "${key}" >> ~/.ssh/authorized_keys
+    done
+    return
+  fi
   print_info "Generate a SSH key pair on client side with 'ssh-keygen'"
   input "Copy-paste the client public key (id_rsa.pub) just here"
-  mkdir -p ~/.ssh
   echo "${input_reply}" >> ~/.ssh/authorized_keys
   chmod -R go= ~/.ssh
   print_info "==> Open another SSH session to test the SSH Key authentication"
@@ -146,6 +179,11 @@ function xtables {
   sudo iptables "$@"
 }
 
+# fucntion to parse the config file
+function parse_config {
+   awk '!/^#/ && !/^$/ {printf("CFG_%s\n",$0);}' $1
+}
+
 ############################################################
 # main
 ############################################################
@@ -155,6 +193,20 @@ ssh_2fa_enable=false
 apt_update_done=false
 email_alert_enable=false
 ipv6_enable=false
+non_interactive_mode=false
+config_file="setup.cfg"
+
+# Repository directory
+DIR=$(echo $0 | rev | cut -d'/' -f 2- | rev)
+
+# Chech input for non-interactive mode
+if [ "$1" = "-a" ] ; then
+  non_interactive_mode=true
+  if [ -n "$2" ]; then
+    config_file="$2"
+  fi
+  eval $(parse_config ${DIR}/${config_file})
+fi
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
@@ -167,7 +219,7 @@ else
 fi
 
 # Software update
-if ask "Do you want to update and upgrade the OS software?" Y;then
+if ask "Do you want to update and upgrade the OS software?" Y "CFG_update_and_upgrade";then
   print_info "apt update"
   sudo apt -y update
   apt_update_done=true
@@ -176,50 +228,69 @@ if ask "Do you want to update and upgrade the OS software?" Y;then
 fi
 
 # Change user password
-if ask "Do you want to change the current user password?" Y;then
-  passwd
+if ask "Do you want to change the current user password?" Y "CFG_change_user_password";then
+  if [ "$non_interactive_mode" = true ]; then
+    echo -e "$CFG_user_new_password\n$CFG_user_new_password" | sudo passwd $USER
+  else
+    passwd
+  fi
 fi
 
 # Create a new user
-if ask "Do you want to create a new user on this server?" N;then
-  input "Please enter the new user name"
-  sudo adduser --gecos "" "$input_reply"
-  sudo usermod -aG sudo "$input_reply"
-  if ask "Reply 'Y' if you want to continue the configuration for the new user (this script will exit)?" Y;then
-    print_warn "Please re-open a SSH session with the newly created user and execute this script again."
-    exit 0
+if ask "Do you want to create a new user on this server?" N "CFG_create_new_user";then
+  if [ "$non_interactive_mode" = true ]; then
+    i=0
+    for user in "${CFG_user_name_list[@]}"; do
+      sudo adduser --gecos "" --disabled-password "$user"
+      echo -e "${CFG_user_password_list[$i]}\n${CFG_user_password_list[$i]}" | sudo passwd "$user"
+      i=$i+1
+    done
+  else
+    input "Please enter the new user name"
+    sudo adduser --gecos "" "$input_reply"
+    sudo usermod -aG sudo "$input_reply"
+    if ask "Reply 'Y' if you want to continue the configuration for the new user (this script will exit)?" Y;then
+      print_warn "Please re-open a SSH session with the newly created user and execute this script again."
+      exit 0
+    fi
   fi
 fi
 
 # Delete an user
-if ask "Do you want to delete other user(s) on this server?" N;then
-  echo "$(eval getent passwd {$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)} | cut -d: -f1 | grep -v $USER)"
-  input "Please enter the user you want to delete from the list above (the home folder will be deleted)"
-  sudo deluser --remove-home "$input_reply"
-  while ask "Do you want to delete another user?";do
-    input "Please type the user you want to delete (home folder will be deleted)"
+if ask "Do you want to delete other user(s) on this server?" N "CFG_delete_users";then
+  if [ "$non_interactive_mode" = true ]; then
+    for user in "${CFG_delete_users_list[@]}"; do
+      sudo deluser --remove-home "$user"
+    done
+  else
+    echo "$(eval getent passwd {$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)} | cut -d: -f1 | grep -v $USER)"
+    input "Please enter the user you want to delete from the list above (the home folder will be deleted)"
     sudo deluser --remove-home "$input_reply"
-  done
+    while ask "Do you want to delete another user?";do
+      input "Please type the user you want to delete (home folder will be deleted)"
+      sudo deluser --remove-home "$input_reply"
+    done
+  fi
 fi
 
 # Git configuration
-if ask "Do you want to install and configure Git?" Y;then
+if ask "Do you want to install and configure Git?" Y "CFG_install_git";then
   print_info "Git setup"
   install git
-  cp gitconfig ~/.gitconfig
-  input "Enter your Git username" "John Doe"
+  cp ${DIR}/gitconfig ~/.gitconfig
+  input "Enter your Git username" "John Doe" "CFG_git_user_name"
   git config --global user.name "${input_reply}"
-  input "Enter your Git email" "john.doe@mail.com"
+  input "Enter your Git email" "john.doe@mail.com" "CFG_git_user_email"
   git config --global user.email "${input_reply}"
   git config --global credential.username "${input_reply}"
 fi
 
 # Set the hostname and FQDN
-if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y;then
-  input "Enter the new hostname"
+if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y "CFG_set_hostname_and_fqdn";then
+  input "Enter the new hostname" "" "CFG_server_hostname"
   new_hostname="$input_reply"
   sudo hostnamectl set-hostname "$new_hostname"
-  input "Enter your server FQDN" "exemple.org"
+  input "Enter your server FQDN" "exemple.org" "$CFG_server_fqdn"
   sudo sed -i "s|^127\.0\.1\.1.*$|127\.0\.1\.1 $new_hostname\.$input_reply $new_hostname|g" /etc/hosts
   print_info "hostname:"
   hostname
@@ -227,36 +298,38 @@ if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y;the
   hostname -f
   print_info "DNS domain name:"
   dnsdomainname
-  input "Please review the information above and press enter when done" " "
 fi
 
 # Set the timezone
-if ask "Do you want to configure this server local timezone?" Y;then
-  print_info "Select your timezone from the list below:"
-  tz=$(tzselect|tail -1)
+if ask "Do you want to configure this server local timezone?" Y "CFG_set_timezone";then
+  if [ "$non_interactive_mode" = false ]; then
+    print_info "Select your timezone from the list below:"
+    tz=$(tzselect|tail -1)
+  else
+    tz="$CFG_tz"
+  fi
   sudo timedatectl set-timezone "$tz"
 fi
 
 # Enable IPv6
-if ask "Do you want to enable and configure the IPv6 network?" Y;then
+if ask "Do you want to enable and configure the IPv6 network?" Y "CFG_enable_ipv6";then
   print_info "Configure the static IPv6 network"
   public_iface=$(ip route show default | awk '/default/ {print $5}')
-  input "Enter the default route interface" "${public_iface}"
-  sed -i "s|%PUBLIC_IFACE|$input_reply|g" 51-cloud-init-ipv6.yaml
-  input "Enter the IPv6 address"
-  sed -i "s|%IPv6_ADDRESS|$input_reply|g" 51-cloud-init-ipv6.yaml
-  input "Enter the IPv6 address prefix" "128"
-  sed -i "s|%IPv6_PREFIX|$input_reply|g" 51-cloud-init-ipv6.yaml
-  input "Enter the IPv6 gateway"
-  sed -i "s|%IPv6_GATEWAY|$input_reply|g" 51-cloud-init-ipv6.yaml
-  sudo cp 51-cloud-init-ipv6.yaml /etc/netplan
+  sed -i "s|%PUBLIC_IFACE|$public_iface|g" $DIR/51-cloud-init-ipv6.yaml
+  input "Enter the IPv6 address" "" "CFG_ipv6_address"
+  sed -i "s|%IPv6_ADDRESS|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
+  input "Enter the IPv6 address prefix" "128" "CFG_ipv6_prefix"
+  sed -i "s|%IPv6_PREFIX|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
+  input "Enter the IPv6 gateway" "" "CFG_ipv6_gateway"
+  sed -i "s|%IPv6_GATEWAY|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
+  sudo cp $DIR/51-cloud-init-ipv6.yaml /etc/netplan
   sudo netplan try
   sudo netplan apply
   ipv6_enable=true
 fi
 
 # Enable SSH 2FA
-if ask "Do you want to enable SSH 2FA?" Y;then
+if ask "Do you want to enable SSH 2FA?" Y "CFG_enable_ssh_2fa";then
   print_info "Install google-authenticator"
   install libpam-google-authenticator
   # google-authenticator settings
@@ -267,48 +340,52 @@ if ask "Do you want to enable SSH 2FA?" Y;then
   # -R => How long in seconds a user can attempt to enter the correct code
   # -w => How many codes can are valid at a time (this references the 1:30 min - 4 min window of valid codes)
   google-authenticator -t -d -f -r 3 -R 30 -w 3
-  if [ ! -f sshd.bak ]; then
-    sudo cp /etc/pam.d/sshd sshd.bak
+  if [ ! -f $DIR/sshd.bak ]; then
+    sudo cp /etc/pam.d/sshd $DIR/sshd.bak
   fi
   echo "auth required pam_google_authenticator.so nullok" | sudo tee -a /etc/pam.d/sshd > /dev/null
   echo "auth required pam_permit.so" | sudo tee -a /etc/pam.d/sshd > /dev/null
-  if [ ! -f sshd_config.bak ]; then
-    sudo cp /etc/ssh/sshd_config sshd_config.bak
+  if [ ! -f $DIR/sshd_config.bak ]; then
+    sudo cp /etc/ssh/sshd_config $DIR/sshd_config.bak
   fi
   sudo sed -i "s|^ChallengeResponseAuthentication.*$|ChallengeResponseAuthentication yes|g" /etc/ssh/sshd_config
   sudo systemctl restart sshd.service
   print_info "Please save the TOTP information above in 'Google Authenticator' alike app"
-  print_info "==> Open another SSH session to test the 2FA authentication"
-  print_warn "==> But do not close this SSH session!!!"
-  if ! ask "Is the 2FA authentication working correctly?";then
-    restore_ssh_config
-    die "SSH 2FA doesn't work, abort this program"
+  if [ "$non_interactive_mode" = false ]; then
+    print_info "==> Open another SSH session to test the 2FA authentication"
+    print_warn "==> But do not close this SSH session!!!"
+    if ! ask "Is the 2FA authentication working correctly?";then
+      restore_ssh_config
+      die "SSH 2FA doesn't work, abort this program"
+    fi
   fi
   ssh_2fa_enable=true
 fi
 
 # Setup SSH Keys
-if ask "Do you want to enable authentication via SSH keys?" Y;then
+if ask "Do you want to enable authentication via SSH keys?" Y "CFG_enable_ssh_keys";then
   if [ "$ssh_2fa_enable" = true ]; then
     # update ssh config to support SSH key + 2FA authentication
-    if [ ! -f sshd.bak ]; then
-      sudo cp /etc/pam.d/sshd sshd.bak
+    if [ ! -f $DIR/sshd.bak ]; then
+      sudo cp /etc/pam.d/sshd $DIR/sshd.bak
     fi
     sudo sed -i "s|^@include common-auth$|#@include common-auth|g" /etc/pam.d/sshd
-    if [ ! -f sshd_config.bak ]; then
-      sudo cp /etc/ssh/sshd_config sshd_config.bak
+    if [ ! -f $DIR/sshd_config.bak ]; then
+      sudo cp /etc/ssh/sshd_config $DIR/sshd_config.bak
     fi
     echo "AuthenticationMethods publickey,password publickey,keyboard-interactive" | sudo tee -a /etc/ssh/sshd_config > /dev/null
     sudo systemctl restart sshd.service
   fi
   setup_ssk_key
-  while ask "Do you want to add another SSH key client?";do
-    setup_ssk_key
-  done
+  if [ "$non_interactive_mode" = false ]; then
+    while ask "Do you want to add another SSH key client?";do
+      setup_ssk_key
+    done
+  fi
 fi
 
 # Setup fail2ban for SSH
-if ask "Do you want to install fail2ban to protect SSH?" Y;then
+if ask "Do you want to install fail2ban to protect SSH?" Y "CFG_install_fail2ban";then
   install fail2ban
   sudo systemctl enable fail2ban
   sudo systemctl start fail2ban
@@ -316,8 +393,8 @@ if ask "Do you want to install fail2ban to protect SSH?" Y;then
 fi
 
 # Setup email alerts
-if ask "Do you want to receive email alerts from this server (only support Gmail SMTP server)?" Y;then
-  input "Please enter the email addressses to receive the alerts (comma separated list)"
+if ask "Do you want to receive email alerts from this server (only support Gmail SMTP server)?" Y "CFG_enable_email_alerts";then
+  input "Please enter the email addressses to receive the alerts (comma separated list)" "" "CFG_email_recipients"
   sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
   email_recipients="${input_reply}"
   echo "EMAIL_RECIPIENTS=${email_recipients}" | sudo tee -a /etc/environment > /dev/null
@@ -338,10 +415,10 @@ smtp_use_tls = yes
 EOF
 )
   echo "$postfix_conf" | sudo tee -a /etc/postfix/main.cf > /dev/null
-  input "Please enter your Gmail email" "john.doe@gmail.com"
+  input "Please enter your Gmail email" "john.doe@gmail.com" "CFG_gmail_address"
   gmail_email="$input_reply"
   print_warn "To create a Gmail appication password check this link: https://devanswers.co/create-application-specific-password-gmail/"
-  input "Please enter your generated app password (hidden)" "" "password"
+  input "Please enter your generated app password (hidden)" "" "password" "CFG_gmail_app_password"
   gmail_password="$input_reply"
   echo "[smtp.gmail.com]:587 ${gmail_email}:${gmail_password}" | sudo tee /etc/postfix/sasl_passwd > /dev/null
   sudo postmap /etc/postfix/sasl_passwd
@@ -349,33 +426,35 @@ EOF
   sudo chmod 0600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
   print_info "Sign certificate"
   cat /etc/ssl/certs/GlobalSign_Root_CA_-_R2.pem | sudo tee -a /etc/postfix/cacert.pem > /dev/null
-  if ask "Do you want to send a test email to '${gmail_email}'?" Y;then
+  if ask "Do you want to send a test email to '${gmail_email}'?" Y "CFG_send_test_email";then
     echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" ${gmail_email}
     print_info "email sent!"
   fi
 fi
 
 # Setup SSH login alerts
-if ask "Do you want to receive email alerts on SSH login?" Y;then
+if ask "Do you want to receive email alerts on SSH login?" Y "CFG_ssh_login_alert";then
   print_info "Setup SSH login alert"
   sudo mkdir -p /etc/pam.scripts
   sudo chmod 0755 /etc/pam.scripts
-  sudo cp ssh_email_alert.sh /etc/pam.scripts
+  sudo cp $DIR/ssh_email_alert.sh /etc/pam.scripts
   sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
   sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
   echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
-  print_info "Open another SSH session if you want to test the SSH login email alert"
-  input "When done, press 'Enter' to continue" " "
+  if [ "$non_interactive_mode" = false ]; then
+    print_info "Open another SSH session if you want to test the SSH login email alert"
+    input "When done, press 'Enter' to continue" " "
+  fi
 fi
 
 # Setup alert on reboot
-if ask "Do you want to receive email alert on reboot?" Y;then
+if ask "Do you want to receive email alert on reboot?" Y "CFG_reboot_alert";then
   print_info "Setup reboot email alert"
   (sudo crontab -l 2>/dev/null; echo "@reboot echo \"Please check your server if the reboot was not expected.\" | mail -s \"[\$(hostname)] System was rebooted on \$(date)\" \$EMAIL_RECIPIENTS") | sudo crontab -u root -
 fi
 
 # Setup PSAD
-if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y;then
+if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
   if [ "$email_alert_enable" = false ]; then
     echo postfix postfix/main_mailer_type string Local only | sudo debconf-set-selections
     echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
@@ -405,7 +484,7 @@ fi
 # Setup IPv4/IPv6 Firewall
 network_type="IPv4"
 [ "$ipv6_enable" = true ] && network_type="IPv4 & IPv6"
-if ask "Do you want to setup the $network_type firewall?" Y;then
+if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup";then
   # reset the firewall
   xtables -P INPUT ACCEPT
   xtables -P FORWARD ACCEPT
@@ -426,15 +505,15 @@ if ask "Do you want to setup the $network_type firewall?" Y;then
   [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
 
   # Accept ping requests
-  if ask "Do you want to accept incoming 'ping' requests?" Y;then
+  if ask "Do you want to accept incoming 'ping' requests?" Y "CFG_firewall_accept_ping_requests";then
     sudo iptables -A INPUT -p icmp --icmp-type 8 -m conntrack --ctstate NEW -j ACCEPT
     [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp --icmpv6-type 128 -m conntrack --ctstate NEW -j ACCEPT
   fi
 
   # Set Random TCP port for SSH server
-  if ask "Do you want to use a random TCP port for SSH server?" Y;then
+  if ask "Do you want to use a random TCP port for SSH server?" Y "CFG_firewall_change_ssh_port";then
     random_port=$(shuf -i 49152-65535 -n 1)
-    input "Press enter or choose another TCP port for SSH" "$random_port"
+    input "Press enter or choose another TCP port for SSH" "$random_port" "CFG_firewall_ssh_port"
     new_port="$input_reply"
     public_iface=$(ip route show default | awk '/default/ {print $5}')
     wan_ipv4=$(ip -o a s $public_iface | grep global | awk '{print $4;exit}')
@@ -446,7 +525,6 @@ if ask "Do you want to setup the $network_type firewall?" Y;then
       sudo ip6tables -t nat -A PREROUTING -d "$wan_ipv6" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
     fi
     print_warn "You can try to open another SSH session with the port: $new_port"
-    input "Press enter to continue" " "
   fi
 
   xtables -A INPUT -j LOG
