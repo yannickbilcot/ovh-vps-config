@@ -47,7 +47,6 @@ cd ovh-vps-config
   - [x] Can create multiple peer(s)
   - [x] Firewall configuration
 
-- [ ] IPv6 only support (DNS64 + Stateless [NAT66](https://www.jool.mx/en/intro-xlat.html#siit-traditional))
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
 - [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
