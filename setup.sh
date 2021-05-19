@@ -265,7 +265,7 @@ else
 fi
 
 # Software update
-if ask "Do you want to update and upgrade the OS software?" Y "CFG_update_and_upgrade";then
+if ask "Update and upgrade the OS software?" Y "CFG_update_and_upgrade";then
   print_info "apt update"
   sudo apt -y update
   apt_update_done=true
@@ -274,7 +274,7 @@ if ask "Do you want to update and upgrade the OS software?" Y "CFG_update_and_up
 fi
 
 # Change user password
-if ask "Do you want to change the current user password?" Y "CFG_change_user_password";then
+if ask "Change the current user password?" Y "CFG_change_user_password";then
   if [ "$non_interactive_mode" = true ]; then
     echo -e "$CFG_user_new_password\n$CFG_user_new_password" | sudo passwd $USER
   else
@@ -283,7 +283,7 @@ if ask "Do you want to change the current user password?" Y "CFG_change_user_pas
 fi
 
 # Create a new user
-if ask "Do you want to create a new user on this server?" N "CFG_create_new_user";then
+if ask "Create a new user on this server?" N "CFG_create_new_user";then
   if [ "$non_interactive_mode" = true ]; then
     i=0
     for user in "${CFG_user_name_list[@]}"; do
@@ -303,7 +303,7 @@ if ask "Do you want to create a new user on this server?" N "CFG_create_new_user
 fi
 
 # Delete an user
-if ask "Do you want to delete other user(s) on this server?" N "CFG_delete_users";then
+if ask "Delete other user(s) on this server?" N "CFG_delete_users";then
   if [ "$non_interactive_mode" = true ]; then
     for user in "${CFG_delete_users_list[@]}"; do
       sudo deluser --remove-home "$user"
@@ -312,7 +312,7 @@ if ask "Do you want to delete other user(s) on this server?" N "CFG_delete_users
     echo "$(eval getent passwd {$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)} | cut -d: -f1 | grep -v $USER)"
     input "Please enter the user you want to delete from the list above (the home folder will be deleted)"
     sudo deluser --remove-home "$input_reply"
-    while ask "Do you want to delete another user?";do
+    while ask "Delete another user?";do
       input "Please type the user you want to delete (home folder will be deleted)"
       sudo deluser --remove-home "$input_reply"
     done
@@ -320,7 +320,7 @@ if ask "Do you want to delete other user(s) on this server?" N "CFG_delete_users
 fi
 
 # Git configuration
-if ask "Do you want to install and configure Git?" Y "CFG_install_git";then
+if ask "Install and configure Git?" Y "CFG_install_git";then
   print_info "Git setup"
   install git
   cp ${DIR}/gitconfig ~/.gitconfig
@@ -332,7 +332,7 @@ if ask "Do you want to install and configure Git?" Y "CFG_install_git";then
 fi
 
 # Set the hostname and FQDN
-if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y "CFG_set_hostname_and_fqdn";then
+if ask "Change the current server hostname and FQDN (DNS)?" Y "CFG_set_hostname_and_fqdn";then
   input "Enter the new hostname" "" "CFG_server_hostname"
   new_hostname="$input_reply"
   sudo hostnamectl set-hostname "$new_hostname"
@@ -347,7 +347,7 @@ if ask "Do you want to change the current server hostname and FQDN (DNS)?" Y "CF
 fi
 
 # Set the timezone
-if ask "Do you want to configure this server local timezone?" Y "CFG_set_timezone";then
+if ask "Configure this server local timezone?" Y "CFG_set_timezone";then
   if [ "$non_interactive_mode" = false ]; then
     print_info "Select your timezone from the list below:"
     tz=$(tzselect|tail -1)
@@ -358,7 +358,7 @@ if ask "Do you want to configure this server local timezone?" Y "CFG_set_timezon
 fi
 
 # Enable IPv6
-if ask "Do you want to enable and configure the IPv6 network?" Y "CFG_enable_ipv6";then
+if ask "Enable and configure the IPv6 network?" Y "CFG_enable_ipv6";then
   print_info "Configure the static IPv6 network"
   sed -i "s|%PUBLIC_IFACE|$public_iface|g" $DIR/51-cloud-init-ipv6.yaml
   input "Enter the IPv6 address" "" "CFG_ipv6_address"
@@ -374,7 +374,7 @@ if ask "Do you want to enable and configure the IPv6 network?" Y "CFG_enable_ipv
 fi
 
 # Enable SSH 2FA
-if ask "Do you want to enable SSH 2FA?" Y "CFG_enable_ssh_2fa";then
+if ask "Enable SSH 2FA?" Y "CFG_enable_ssh_2fa";then
   print_info "Install google-authenticator"
   install libpam-google-authenticator
   # google-authenticator settings
@@ -408,7 +408,7 @@ if ask "Do you want to enable SSH 2FA?" Y "CFG_enable_ssh_2fa";then
 fi
 
 # Setup SSH Keys
-if ask "Do you want to enable authentication via SSH keys?" Y "CFG_enable_ssh_keys";then
+if ask "Enable authentication via SSH keys?" Y "CFG_enable_ssh_keys";then
   if [ "$ssh_2fa_enable" = true ]; then
     # update ssh config to support SSH key + 2FA authentication
     if [ ! -f $DIR/sshd.bak ]; then
@@ -423,14 +423,14 @@ if ask "Do you want to enable authentication via SSH keys?" Y "CFG_enable_ssh_ke
   fi
   setup_ssk_key
   if [ "$non_interactive_mode" = false ]; then
-    while ask "Do you want to add another SSH key client?";do
+    while ask "Add another SSH key client?";do
       setup_ssk_key
     done
   fi
 fi
 
 # Setup fail2ban for SSH
-if ask "Do you want to install fail2ban to protect SSH?" Y "CFG_install_fail2ban";then
+if ask "Install fail2ban to protect SSH?" Y "CFG_install_fail2ban";then
   install fail2ban
   sudo systemctl enable fail2ban
   sudo systemctl start fail2ban
@@ -438,7 +438,7 @@ if ask "Do you want to install fail2ban to protect SSH?" Y "CFG_install_fail2ban
 fi
 
 # Setup email alerts
-if ask "Do you want to receive email alerts from this server (only support Gmail SMTP server)?" Y "CFG_enable_email_alerts";then
+if ask "Receive email alerts from this server (only support Gmail SMTP server)?" Y "CFG_enable_email_alerts";then
   input "Please enter the email addressses to receive the alerts (comma separated list)" "" "CFG_email_recipients"
   sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
   email_recipients="${input_reply}"
@@ -471,14 +471,14 @@ EOF
   sudo chmod 0600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
   print_info "Sign certificate"
   cat /etc/ssl/certs/GlobalSign_Root_CA_-_R2.pem | sudo tee -a /etc/postfix/cacert.pem > /dev/null
-  if ask "Do you want to send a test email to '${gmail_email}'?" Y "CFG_send_test_email";then
+  if ask "Send a test email to '${gmail_email}'?" Y "CFG_send_test_email";then
     echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" ${gmail_email}
     print_info "email sent!"
   fi
 fi
 
 # Setup SSH login alerts
-if ask "Do you want to receive email alerts on SSH login?" Y "CFG_ssh_login_alert";then
+if ask "Receive email alerts on SSH login?" Y "CFG_ssh_login_alert";then
   print_info "Setup SSH login alert"
   sudo mkdir -p /etc/pam.scripts
   sudo chmod 0755 /etc/pam.scripts
@@ -493,13 +493,13 @@ if ask "Do you want to receive email alerts on SSH login?" Y "CFG_ssh_login_aler
 fi
 
 # Setup alert on reboot
-if ask "Do you want to receive email alert on reboot?" Y "CFG_reboot_alert";then
+if ask "Receive email alert on reboot?" Y "CFG_reboot_alert";then
   print_info "Setup reboot email alert"
   (sudo crontab -l 2>/dev/null; echo "@reboot echo \"Please check your server if the reboot was not expected.\" | mail -s \"[\$(hostname)] System was rebooted on \$(date)\" \$EMAIL_RECIPIENTS") | sudo crontab -u root -
 fi
 
 # Setup PSAD
-if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
+if ask "Install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
   if [ "$email_alert_enable" = false ]; then
     echo postfix postfix/main_mailer_type string Local only | sudo debconf-set-selections
     echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
@@ -527,7 +527,7 @@ if ask "Do you want to install PSAD (Port Scan Attack Detection)?" Y "CFG_instal
 fi
 
 # Automatic updates
-if ask "Do you want to enable automatic updates?" Y "CFG_enable_auto_updates";then
+if ask "Enable automatic updates?" Y "CFG_enable_auto_updates";then
   install unattended-upgrades
   sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
   sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
@@ -536,7 +536,7 @@ fi
 # Setup IPv4/IPv6 Firewall
 network_type="IPv4"
 [ "$ipv6_enable" = true ] && network_type="IPv4 & IPv6"
-if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup";then
+if ask "Setup the $network_type firewall?" Y "CFG_firewall_setup";then
   # reset the firewall
   xtables -P INPUT ACCEPT
   xtables -P FORWARD ACCEPT
@@ -556,7 +556,7 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
   xtables -A INPUT -p tcp --dport 22 -j ACCEPT
 
   # Accept ping requests
-  if ask "Do you want to accept incoming 'ping' requests?" Y "CFG_firewall_accept_ping_requests";then
+  if ask "Accept incoming 'ping' requests?" Y "CFG_firewall_accept_ping_requests";then
     sudo iptables -A INPUT -p icmp --icmp-type 8 -m conntrack --ctstate NEW -j ACCEPT
   else
     [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp --icmpv6-type 128 -m conntrack --ctstate NEW -j DROP
@@ -565,7 +565,7 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
   [ "$ipv6_enable" = true ] && sudo ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
 
   # Set Random TCP port for SSH server
-  if ask "Do you want to use a random TCP port for SSH server?" Y "CFG_firewall_change_ssh_port";then
+  if ask "Use a random TCP port for SSH server?" Y "CFG_firewall_change_ssh_port";then
     random_port=$(shuf -i 49152-65535 -n 1)
     input "Press enter or choose another TCP port for SSH" "$random_port" "CFG_firewall_ssh_port"
     new_port="$input_reply"
@@ -592,7 +592,7 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
 fi
 
 # Wireguard Setup
-if ask "Do you want to install Wireguard?" Y "CFG_install_wireguard";then
+if ask "Install Wireguard?" Y "CFG_install_wireguard";then
   wg_ipv4_enable=false
   wg_ipv6_enable=false
   wg_server_ips=""
@@ -604,7 +604,7 @@ if ask "Do you want to install Wireguard?" Y "CFG_install_wireguard";then
   wg_server_port="$input_reply"
 
   # Selet server mode IPv4/IPv6/Dual stack
-  if ask "Do you want to enable IPv4 support?" Y "CFG_wg_server_ipv4_enable";then
+  if ask "Enable IPv4 support?" Y "CFG_wg_server_ipv4_enable";then
     wg_server_ips="${wg_server_ipv4}/24"
     wg_fw_rule_up="iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
     wg_fw_rule_down="iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
@@ -617,7 +617,7 @@ if ask "Do you want to install Wireguard?" Y "CFG_install_wireguard";then
     wg_peer_type="ip4"
     wg_ipv4_enable=true
   fi
-  if ask "Do you want to enable IPv6 support?" Y "CFG_wg_server_ipv6_enable";then
+  if ask "Enable IPv6 support?" Y "CFG_wg_server_ipv6_enable";then
     if [ "$wg_ipv4_enable" ]; then
       wg_server_ips=$wg_server_ips", ${wg_server_ipv6}/128"
       echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-wg.conf > /dev/null
@@ -662,7 +662,7 @@ EOL
     done
   else
     i=1
-    while ask "Do you want to create a peer client?" Y;do
+    while ask "Create a peer client?" Y;do
       if [ "$wg_ipv4_enable" = true -a "$wg_ipv6_enable" = true ]; then
         print_info "Choose the peer connectivity between IPv4, IPv6 or Dual stack"
         input "Please enter the peer client connectivity type (ip4|ip6|dual)" "dual"
