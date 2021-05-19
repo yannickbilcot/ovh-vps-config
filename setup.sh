@@ -162,6 +162,46 @@ function setup_ssk_key {
   fi
 }
 
+# function to generate wireguard client config
+function wg_create_client {
+  local network_mode="$1"
+  local id="$2"
+  local address=""
+
+  print_info "Generate config for the client #$id [$network_mode]"
+  client_private_key=$(wg genkey)
+  client_public_key=$(echo "${client_private_key}" | wg pubkey)
+
+  if [ "$network_mode" = "ip4" ]; then
+    address="${wg_server_ipv4::-1}$((id+1))/32"
+  elif [ "$network_mode" = "ip6" ]; then
+    address="${wg_server_ipv6::-1}$((id+1))/128"
+  elif [ "$network_mode" = "dual" ]; then
+    address="${wg_server_ipv4::-1}$((id+1))/32, ${wg_server_ipv6::-1}$((id+1))/128"
+  else
+    die "Wireguard create client issue: mode should be [ip4|ip6|dual]"
+  fi
+
+  cat > $DIR"/wg-client$id.conf" <<EOL
+[Interface]
+PrivateKey = ${client_private_key}
+Address = ${address}
+
+[Peer]
+PublicKey = ${server_public_key}
+AllowedIPs = 0.0.0.0/0
+Endpoint = $(hostname -f):${wg_server_port}
+PersistentKeepalive = 25
+EOL
+
+  cat >> $DIR"/${wg_server_cfg}" <<EOL
+
+[Peer]
+PublicKey = ${client_public_key}
+AllowedIPs = ${address}
+EOL
+}
+
 # function to update and install software
 function install {
   if [ "$apt_update_done" = false ]; then
@@ -195,6 +235,12 @@ email_alert_enable=false
 ipv6_enable=false
 non_interactive_mode=false
 config_file="setup.cfg"
+public_iface=$(ip route show default | awk '/default/ {print $5}')
+
+# wireguard globals
+wg_server_ipv4="10.0.0.1"
+wg_server_ipv6="fd01:8bad:f00d:1::1"
+wg_server_cfg="wg0.conf"
 
 # Repository directory
 DIR=$(echo $0 | rev | cut -d'/' -f 2- | rev)
@@ -243,7 +289,7 @@ if ask "Do you want to create a new user on this server?" N "CFG_create_new_user
     for user in "${CFG_user_name_list[@]}"; do
       sudo adduser --gecos "" --disabled-password "$user"
       echo -e "${CFG_user_password_list[$i]}\n${CFG_user_password_list[$i]}" | sudo passwd "$user"
-      i=$i+1
+      i=$((i+1))
     done
   else
     input "Please enter the new user name"
@@ -314,7 +360,6 @@ fi
 # Enable IPv6
 if ask "Do you want to enable and configure the IPv6 network?" Y "CFG_enable_ipv6";then
   print_info "Configure the static IPv6 network"
-  public_iface=$(ip route show default | awk '/default/ {print $5}')
   sed -i "s|%PUBLIC_IFACE|$public_iface|g" $DIR/51-cloud-init-ipv6.yaml
   input "Enter the IPv6 address" "" "CFG_ipv6_address"
   sed -i "s|%IPv6_ADDRESS|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
@@ -524,7 +569,6 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
     random_port=$(shuf -i 49152-65535 -n 1)
     input "Press enter or choose another TCP port for SSH" "$random_port" "CFG_firewall_ssh_port"
     new_port="$input_reply"
-    public_iface=$(ip route show default | awk '/default/ {print $5}')
     wan_ipv4=$(ip -o a s $public_iface | grep global | awk '{print $4;exit}')
     sudo iptables -t nat -I PREROUTING -d "$wan_ipv4" -i "$public_iface" -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535
     sudo iptables -t nat -A PREROUTING -d "$wan_ipv4" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
@@ -545,4 +589,108 @@ if ask "Do you want to setup the $network_type firewall?" Y "CFG_firewall_setup"
   install iptables-persistent
   sudo systemctl enable netfilter-persistent
   sudo netfilter-persistent save
+fi
+
+# Wireguard Setup
+if ask "Do you want to install Wireguard?" Y "CFG_install_wireguard";then
+  wg_ipv4_enable=false
+  wg_ipv6_enable=false
+  wg_server_ips=""
+  wg_fw_rule_up=""
+  wg_fw_rule_down=""
+  wg_peer_type=""
+
+  input "Select Wireguard listening port" "51820" "CFG_wg_server_port"
+  wg_server_port="$input_reply"
+
+  # Selet server mode IPv4/IPv6/Dual stack
+  if ask "Do you want to enable IPv4 support?" Y "CFG_wg_server_ipv4_enable";then
+    wg_server_ips="${wg_server_ipv4}/24"
+    wg_fw_rule_up="iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_down="iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    # enable IPv4 forwarding
+    sudo sysctl net.ipv4.ip_forward=1
+    echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
+    # firewall rules
+    sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    sudo iptables -A INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    wg_peer_type="ip4"
+    wg_ipv4_enable=true
+  fi
+  if ask "Do you want to enable IPv6 support?" Y "CFG_wg_server_ipv6_enable";then
+    if [ "$wg_ipv4_enable" ]; then
+      wg_server_ips=$wg_server_ips", ${wg_server_ipv6}/128"
+      echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-wg.conf > /dev/null
+    else
+      wg_server_ips="${wg_server_ipv6}/128"
+      echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
+    fi
+    wg_fw_rule_up=$wg_fw_rule_up"ip6tables -A FORWARD -i %i -j ACCEPT; ip6tables -A FORWARD -o %i -j ACCEPT; ip6tables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_down=$wg_fw_rule_down"ip6tables -D FORWARD -i %i -j ACCEPT; ip6tables -D FORWARD -o %i -j ACCEPT; ip6tables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    # enable IPv6 forwarding
+    sudo sysctl net.ipv6.conf.all.forwarding=1
+    # firewall rules
+    sudo ip6tables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    sudo ip6tables -A INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    wg_peer_type="ip6"
+    wg_ipv6_enable=true
+  fi
+  [ "$wg_ipv4_enable" = false -a "$wg_ipv6_enable" = false ] && die "Wireguard server mode: you should select IPv4 and/or IPv6"
+
+  print_info "install wireguard"
+  install wireguard qrencode
+
+  print_info "Generate server config"
+  server_private_key=$(wg genkey)
+  server_public_key=$(echo "${server_private_key}" | wg pubkey)
+
+  cat > "${wg_server_cfg}" <<EOL
+[Interface]
+Address = ${wg_server_ips}
+SaveConfig = true
+ListenPort = ${wg_server_port}
+PrivateKey = ${server_private_key}
+PostUp = ${wg_fw_rule_up::-1}
+PostDown = ${wg_fw_rule_down::-1}
+EOL
+
+  if [ "$non_interactive_mode" = true ]; then
+    i=1
+    for peer_type in "${CFG_wg_client_list[@]}"; do
+      wg_create_client $peer_type "$i"
+      i=$((i+1))
+    done
+  else
+    i=1
+    while ask "Do you want to create a peer client?" Y;do
+      if [ "$wg_ipv4_enable" = true -a "$wg_ipv6_enable" = true ]; then
+        print_info "Choose the peer connectivity between IPv4, IPv6 or Dual stack"
+        input "Please enter the peer client connectivity type (ip4|ip6|dual)" "dual"
+        wg_peer_type="$input_reply"
+      fi
+      wg_create_client "$wg_peer_type" "$i"
+      i=$((i+1))
+    done
+  fi
+
+  print_info "move server config to /etc/wireguard/"
+  sudo mkdir -p "/etc/wireguard"
+  sudo mv $DIR/${wg_server_cfg} /etc/wireguard/
+  sudo chown root:root /etc/wireguard/${wg_server_cfg}
+  sudo chmod 600 /etc/wireguard/${wg_server_cfg}
+
+  print_info "enable wireguard systemctl service"
+  sudo systemctl enable wg-quick@wg0
+  print_info "save firewall rules"
+  netfilter-persistent save
+
+  # show the configuration
+  print_info "wg show:"
+  wg show
+  print_info "server configuration:"
+  sudo cat /etc/wireguard/${wg_server_cfg}
+  for client in $(find $DIR/wg-client*.conf); do
+    print_info "client configuration '$client':"
+    qrencode -t ansiutf8 < "$client"
+  done
 fi
