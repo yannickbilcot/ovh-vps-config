@@ -167,6 +167,7 @@ function wg_create_client {
   local network_mode="$1"
   local id="$2"
   local address=""
+  local allowed_ips=""
 
   print_info "Generate config for the client #$id [$network_mode]"
   client_private_key=$(wg genkey)
@@ -182,6 +183,14 @@ function wg_create_client {
     die "Wireguard create client issue: mode should be [ip4|ip6|dual]"
   fi
 
+  if [ "$wg_ipv4_enable" = true -a "$wg_ipv6_enable" = true ]; then
+    allowed_ips="0.0.0.0/0, ::/0"
+  elif [ "$wg_ipv4_enable" = false ]; then
+    allowed_ips="::/0"
+  else
+    allowed_ips="0.0.0.0/0"
+  fi
+
   cat > $DIR"/wg-client$id.conf" <<EOL
 [Interface]
 PrivateKey = ${client_private_key}
@@ -189,7 +198,7 @@ Address = ${address}
 
 [Peer]
 PublicKey = ${server_public_key}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = ${allowed_ips}
 Endpoint = $(hostname -f):${wg_server_port}
 PersistentKeepalive = 25
 EOL
