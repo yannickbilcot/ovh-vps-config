@@ -42,12 +42,12 @@ cd ovh-vps-config
   - [x] Setup fail2ban for SSH
   - [x] Enable 2FA (google authenticator)
 
-- [ ] Setup Wireguard
-  - [ ] Add IPv6 support (generate ULA address randomly)
-  - [ ] Add a function to create new Peer(s) (IPv4 and/or IPv6)
-  - [ ] Firewall configuration
-  - [ ] Add IPv6 only support (DNS64 + Stateless [NAT66](https://www.jool.mx/en/intro-xlat.html#siit-traditional))
+- [x] Setup Wireguard
+  - [x] IPv4, IPv6 or Dual stack support
+  - [x] Can create multiple peer(s)
+  - [x] Firewall configuration
 
+- [ ] IPv6 only support (DNS64 + Stateless [NAT66](https://www.jool.mx/en/intro-xlat.html#siit-traditional))
 - [ ] Install Docker environment
 - [ ] Install pihole (DNS server)
 - [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
