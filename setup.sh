@@ -606,8 +606,8 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
   # Selet server mode IPv4/IPv6/Dual stack
   if ask "Enable IPv4 support?" Y "CFG_wg_server_ipv4_enable";then
     wg_server_ips="${wg_server_ipv4}/24"
-    wg_fw_rule_up="iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
-    wg_fw_rule_down="iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_up="iptables -D FORWARD -j LOG; iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -A FORWARD -j LOG; iptables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_down="iptables -D FORWARD -j LOG; iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -A FORWARD -j LOG; iptables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
     # enable IPv4 forwarding
     sudo sysctl net.ipv4.ip_forward=1
     echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
@@ -625,8 +625,8 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
       wg_server_ips="${wg_server_ipv6}/128"
       echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
     fi
-    wg_fw_rule_up=$wg_fw_rule_up"ip6tables -A FORWARD -i %i -j ACCEPT; ip6tables -A FORWARD -o %i -j ACCEPT; ip6tables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
-    wg_fw_rule_down=$wg_fw_rule_down"ip6tables -D FORWARD -i %i -j ACCEPT; ip6tables -D FORWARD -o %i -j ACCEPT; ip6tables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_up=$wg_fw_rule_up"ip6tables -D FORWARD -j LOG; ip6tables -A FORWARD -i %i -j ACCEPT; ip6tables -A FORWARD -o %i -j ACCEPT; ip6tables -A FORWARD -j LOG; ip6tables -t nat -A POSTROUTING -o ${public_iface} -j MASQUERADE;"
+    wg_fw_rule_down=$wg_fw_rule_down"ip6tables -D FORWARD -j LOG; ip6tables -D FORWARD -i %i -j ACCEPT; ip6tables -D FORWARD -o %i -j ACCEPT; ip6tables -A FORWARD -j LOG; ip6tables -t nat -D POSTROUTING -o ${public_iface} -j MASQUERADE;"
     # enable IPv6 forwarding
     sudo sysctl net.ipv6.conf.all.forwarding=1
     # firewall rules
@@ -683,10 +683,12 @@ EOL
   sudo systemctl enable wg-quick@wg0
   print_info "save firewall rules"
   sudo netfilter-persistent save
+  print_info "restart wireguard systemctl service"
+  sudo systemctl restart wg-quick@wg0
 
   # show the configuration
   print_info "wg show:"
-  wg show
+  sudo wg show
   print_info "server configuration:"
   sudo cat /etc/wireguard/${wg_server_cfg}
   for client in $(find $DIR/wg-client*.conf); do
