@@ -612,8 +612,8 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
     sudo sysctl net.ipv4.ip_forward=1
     echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
     # firewall rules
-    sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    sudo iptables -A INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    sudo iptables -I FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    sudo iptables -I INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
     wg_peer_type="ip4"
     wg_ipv4_enable=true
   fi
@@ -630,8 +630,8 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
     # enable IPv6 forwarding
     sudo sysctl net.ipv6.conf.all.forwarding=1
     # firewall rules
-    sudo ip6tables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    sudo ip6tables -A INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    sudo ip6tables -I FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    sudo ip6tables -I INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
     wg_peer_type="ip6"
     wg_ipv6_enable=true
   fi
@@ -682,7 +682,7 @@ EOL
   print_info "enable wireguard systemctl service"
   sudo systemctl enable wg-quick@wg0
   print_info "save firewall rules"
-  netfilter-persistent save
+  sudo netfilter-persistent save
 
   # show the configuration
   print_info "wg show:"
