@@ -47,7 +47,7 @@ cd ovh-vps-config
   - [x] Can create multiple peer(s)
   - [x] Firewall configuration
 
-- [ ] Install Docker environment
+- [x] Install Docker environment
 - [ ] Install pihole (DNS server)
 - [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
 - [ ] Open a WAN port for Torrent
