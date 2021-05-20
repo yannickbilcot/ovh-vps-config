@@ -12,7 +12,7 @@ cd ovh-vps-config
 ```
 #### Non-interactive mode
 - Edit the configuration file 'setup.cfg'
-- Start the sprint with the option '-a'
+- Start the script with the option '-a'
 
 ```bash
 ./setup.sh -a
