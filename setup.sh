@@ -129,6 +129,13 @@ function input {
 }
 ############################################################
 
+# function to get the latest Github release tag from repo
+function get_github_latest_release {
+  curl --silent "https://api.github.com/repos/$1/releases/latest" |
+    grep '"tag_name":' |
+    sed -E 's/.*"([^"]+)".*/\1/'
+}
+
 # function to restore the SSH configuration
 function restore_ssh_configs {
   if [ -f $DIR/sshd.bak -a -f $DIR/sshd_config.bak ]; then
@@ -646,7 +653,7 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
   fi
   [ "$wg_ipv4_enable" = false -a "$wg_ipv6_enable" = false ] && die "Wireguard server mode: you should select IPv4 and/or IPv6"
 
-  print_info "install wireguard"
+  print_info "Install wireguard"
   install wireguard qrencode
 
   print_info "Generate server config"
@@ -682,26 +689,49 @@ EOL
     done
   fi
 
-  print_info "move server config to /etc/wireguard/"
+  print_info "Move server config to /etc/wireguard/"
   sudo mkdir -p "/etc/wireguard"
   sudo mv $DIR/${wg_server_cfg} /etc/wireguard/
   sudo chown root:root /etc/wireguard/${wg_server_cfg}
   sudo chmod 600 /etc/wireguard/${wg_server_cfg}
 
-  print_info "enable wireguard systemctl service"
+  print_info "Enable wireguard systemctl service"
   sudo systemctl enable wg-quick@wg0
-  print_info "save firewall rules"
+  print_info "Save firewall rules"
   sudo netfilter-persistent save
-  print_info "restart wireguard systemctl service"
+  print_info "Restart wireguard systemctl service"
   sudo systemctl restart wg-quick@wg0
 
   # show the configuration
   print_info "wg show:"
   sudo wg show
-  print_info "server configuration:"
+  print_info "Server configuration:"
   sudo cat /etc/wireguard/${wg_server_cfg}
   for client in $(find $DIR/wg-client*.conf); do
-    print_info "client configuration '$client':"
+    print_info "Client configuration '$client':"
     qrencode -t ansiutf8 < "$client"
   done
+fi
+
+# Install Docker and Docker compose
+if ask "Install Docker?" Y "CFG_install_docker";then
+
+  print_info "Add docker repository"
+  install apt-transport-https ca-certificates software-properties-common
+  curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" | sudo apt-key add -
+  sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+  print_info "Install Docker"
+  sudo apt update
+  install docker-ce
+  print_info "Add ${USER} to the docker group"
+  sudo usermod -aG docker ${USER}
+
+  if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
+    print_info "Download latest docker-compose binary"
+    tag=$(get_github_latest_release "docker/compose")
+    sudo curl -L "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    print_info "Check the version"
+    docker-compose --version
+  fi
 fi
