@@ -48,7 +48,7 @@ cd ovh-vps-config
   - [x] Firewall configuration
 
 - [x] Install Docker environment
-- [ ] Install pihole (DNS server)
+- [x] Install pihole (DNS server)
 - [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
 - [ ] Open a WAN port for Torrent
 - [ ] Install V2Ray
