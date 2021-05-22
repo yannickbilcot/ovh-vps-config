@@ -715,7 +715,6 @@ fi
 
 # Install Docker and Docker compose
 if ask "Install Docker?" Y "CFG_install_docker";then
-
   print_info "Add docker repository"
   install apt-transport-https ca-certificates software-properties-common
   curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" | sudo apt-key add -
@@ -733,5 +732,40 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo chmod +x /usr/local/bin/docker-compose
     print_info "Check the version"
     docker-compose --version
+
+    if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
+      sudo cp $DIR/docker-compose@.service /etc/systemd/system/
+      sudo systemctl daemon-reload
+      print_info "You can install your docker-compose.yaml files into /etc/docker-compose"
+      sudo mkdir -p /etc/docker-compose
+    fi
   fi
+fi
+
+# Install Docker Pi-hole DNS server
+if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_pi-hole";then
+  sudo mkdir -p /etc/docker-compose/pi-hole
+  print_info "Download docker-compose.yml"
+  tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
+  curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
+  input "Choose a password for Pi-hole Web server" "" "password" "CFG_pi-hole_pasword"
+  sed -i "s|# WEBPASSWORD:.*|$input_reply|g" $DIR/pi-hole.docker-compose.yml
+  if ask "Disable Pi-hole DHCP server?" Y "CFG_pi-hole_dhcp_server_disable";then
+    sed -i "/- \"67:67/udp\"/d" DIR/pi-hole.docker-compose.yml
+  fi
+  print_info "Set the timezone"
+  tz=$(cat /etc/timezone)
+  sed -i "s|TZ: .*|$tz|g" $DIR/pi-hole.docker-compose.yml
+  sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
+
+  print_info "Disable systemd-resolved stub resolver"
+  sudo sed -i "s|#?DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
+  sudo rm /etc/resolv.conf
+  sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  sudo systemctl restart systemd-resolved
+
+  print "Enable Pi-hole systemd unit"
+  sudo systemctl enable docker-compose@pi-hole
+  print "Start Pi-hole docker-compose"
+  sudo systemctl enable docker-compose@pi-hole
 fi
