@@ -769,4 +769,13 @@ if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_piho
   sudo systemctl enable docker-compose@pi-hole
   print_info "Start Pi-hole docker-compose"
   sudo systemctl start docker-compose@pi-hole
+
+  print_info "Add Pi-hole nameserver to resolv.conf"
+  (cat <<EOL
+            nameservers:
+                addresses: [127.0.0.1]
+EOL
+) | sudo tee -a /etc/netplan/50-cloud-init.yaml > /dev/null
+  sudo netplan apply
 fi
+
