@@ -750,12 +750,25 @@ if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_piho
   curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
   input "Choose a password for Pi-hole Web server" "" "password" "CFG_pihole_password"
   sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
-  if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
-    sed -i "/- \"67:67\/udp\"/d" $DIR/pi-hole.docker-compose.yml
-  fi
   print_info "Set the timezone"
   tz=$(cat /etc/timezone)
   sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
+  print_info "Add firewall rules to prevent external public access to Pi-hole"
+  sudo netfilter-persistent restart
+  sudo iptables -N DOCKER-USER
+  sudo iptables -I FORWARD -j DOCKER-USER
+  sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+  sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+  sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
+  if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
+    sed -i "/- \"67:67\/udp\"/d" $DIR/pi-hole.docker-compose.yml
+  else
+    sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
+  fi
+  sudo iptables -A DOCKER-USER -j RETURN
+  sudo netfilter-persistent save
+  sudo systemctl restart docker
+
   sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
   rm pi-hole.docker-compose.yml
 
@@ -771,11 +784,10 @@ if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_piho
   sudo systemctl start docker-compose@pi-hole
 
   print_info "Add Pi-hole nameserver to resolv.conf"
-  (cat <<EOL
+  sudo tee -a /etc/netplan/50-cloud-init.yaml > /dev/null <<EOF
             nameservers:
                 addresses: [127.0.0.1]
-EOL
-) | sudo tee -a /etc/netplan/50-cloud-init.yaml > /dev/null
+EOF
   sudo netplan apply
 fi
 
