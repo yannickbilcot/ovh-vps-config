@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  reverse-proxy:
+  traefik:
     image: traefik:v2.4
     container_name: traefik
     command:
@@ -23,10 +23,13 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "853:853"
+      - "53:53"
+      - "53:53/udp"
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - './acme.json:/acme.json'
-    restart: always
+    restart: unless-stopped
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`traefik.merlion.bibilcorp.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
