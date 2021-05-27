@@ -56,7 +56,7 @@ table {
   <div>
     <h3>Whois information</h3>
     <div class="whois">
-$(whois ${PAM_RHOST} | awk '{print $0"<br>"}')
+$(whois "${PAM_RHOST}" | awk '{print $0"<br>"}')
     </div>
     <p>If you don't recognize this activity, your server might be compromised.</p>
   </div>
@@ -71,7 +71,7 @@ Subject:${SUBJECT}
 Content-Type: text/html
 ${BODY}
 EOF
-) | /usr/sbin/sendmail -t ${EMAIL_RECIPIENTS}
+) | /usr/sbin/sendmail -t "${EMAIL_RECIPIENTS}"
 fi
 
 exit 0
