@@ -1,6 +1,7 @@
 # ovh-vps-config
 OVH VPS configuration for Ubuntu 20.04
 
+[![Build Status](https://travis-ci.com/yannickbilcot/ovh-vps-config.svg?branch=master)](https://travis-ci.com/yannickbilcot/ovh-vps-config)
 ![alt text](https://github.com/yannickbilcot/ovh-vps-config/raw/master/banner.png "Banner")
 
 ### Quickstart
