@@ -792,7 +792,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     print_info "Enable Pi-hole systemd unit"
     sudo systemctl enable docker-compose@pi-hole
     print_info "Start Pi-hole docker-compose"
-    sleep 2
+    sleep 5
     sudo systemctl start docker-compose@pi-hole
     print_info "Pi-hole status:"
     docker exec -it  pihole pihole -v -c
