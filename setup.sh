@@ -254,6 +254,7 @@ config_file="setup.cfg"
 public_iface=$(ip route show default | awk '/default/ {print $5}')
 
 # wireguard globals
+wg_enable=false
 wg_server_ipv4="10.0.0.1"
 wg_server_ipv6="fd01:8bad:f00d:1::1"
 wg_server_cfg="wg0.conf"
@@ -491,27 +492,33 @@ EOF
     echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" ${gmail_email}
     print_info "email sent!"
   fi
-fi
 
-# Setup SSH login alerts
-if ask "Receive email alerts on SSH login?" Y "CFG_ssh_login_alert";then
-  print_info "Setup SSH login alert"
-  sudo mkdir -p /etc/pam.scripts
-  sudo chmod 0755 /etc/pam.scripts
-  sudo cp $DIR/ssh_email_alert.sh /etc/pam.scripts
-  sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
-  sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
-  echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
-  if [ "$non_interactive_mode" = false ]; then
-    print_info "Open another SSH session if you want to test the SSH login email alert"
-    input "When done, press 'Enter' to continue" " "
+  # Alert on SSH login
+  if ask "Receive email alerts on SSH login?" Y "CFG_ssh_login_alert";then
+    print_info "Setup SSH login alert"
+    sudo mkdir -p /etc/pam.scripts
+    sudo chmod 0755 /etc/pam.scripts
+    sudo cp $DIR/ssh_email_alert.sh /etc/pam.scripts
+    sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
+    sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
+    echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
+    if [ "$non_interactive_mode" = false ]; then
+      print_info "Open another SSH session if you want to test the SSH login email alert"
+      input "When done, press 'Enter' to continue" " "
+    fi
   fi
-fi
 
-# Setup alert on reboot
-if ask "Receive email alert on reboot?" Y "CFG_reboot_alert";then
-  print_info "Setup reboot email alert"
-  (sudo crontab -l 2>/dev/null; echo "@reboot echo \"Please check your server if the reboot was not expected.\" | mail -s \"[\$(hostname)] System was rebooted on \$(date)\" \$EMAIL_RECIPIENTS") | sudo crontab -u root -
+  # Alert on reboot
+  if ask "Receive email alert on reboot?" Y "CFG_reboot_alert";then
+    print_info "Setup reboot email alert"
+    (sudo crontab -l 2>/dev/null; echo "@reboot echo \"Please check your server if the reboot was not expected.\" | mail -s \"[\$(hostname)] System was rebooted on \$(date)\" \$EMAIL_RECIPIENTS") | sudo crontab -u root -
+  fi
+
+  # Alert on security unattended upgrade
+  if ask "Receive email alert on system security unattended upgrade?" Y "CFG_unattended_upgrade_alert";then
+    sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
+    sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
+  fi
 fi
 
 # Setup PSAD
@@ -540,13 +547,6 @@ if ask "Install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
   sudo systemctl restart psad
   print_info "PSAD status"
   sudo psad -S
-fi
-
-# Automatic updates
-if ask "Enable automatic security updates?" Y "CFG_enable_auto_security_updates";then
-  install unattended-upgrades
-  sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
-  sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
 fi
 
 # Setup IPv4/IPv6 Firewall
@@ -609,6 +609,7 @@ fi
 
 # Wireguard Setup
 if ask "Install Wireguard?" Y "CFG_install_wireguard";then
+  wg_enable=true
   wg_ipv4_enable=false
   wg_ipv6_enable=false
   wg_server_ips=""
@@ -739,54 +740,62 @@ if ask "Install Docker?" Y "CFG_install_docker";then
       sudo mkdir -p /etc/docker-compose
     fi
   fi
-fi
 
-# Install Docker Pi-hole DNS server
-if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_pihole";then
-  sudo mkdir -p /etc/docker-compose/pi-hole
-  print_info "Download docker-compose.yml"
-  tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
-  curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
-  input "Choose a password for Pi-hole Web server" "" "password" "CFG_pihole_password"
-  sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
-  print_info "Set the timezone"
-  tz=$(cat /etc/timezone)
-  sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
-  print_info "Add firewall rules to prevent external public access to Pi-hole"
-  sudo netfilter-persistent restart
-  sudo iptables -N DOCKER-USER
-  sudo iptables -I FORWARD -j DOCKER-USER
-  sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-  sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-  sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
-  if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
-    sed -i "/- \"67:67\/udp\"/d" $DIR/pi-hole.docker-compose.yml
-  else
-    sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
-  fi
-  sudo iptables -A DOCKER-USER -j RETURN
-  sudo netfilter-persistent save
-  sudo systemctl restart docker
+  # Install Docker Pi-hole DNS server
+  if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_pihole";then
+    sudo mkdir -p /etc/docker-compose/pi-hole
+    print_info "Download docker-compose.yml"
+    tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
+    curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
+    input "Choose a password for Pi-hole Web server" "" "password" "CFG_pihole_password"
+    sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
+    print_info "Set the timezone"
+    tz=$(cat /etc/timezone)
+    sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
+    print_info "Add firewall rules to prevent external public access to Pi-hole"
 
-  sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
-  rm pi-hole.docker-compose.yml
+    # Stop wireguard before changing the firewall rules
+    if [ "$wg_enable" = true ]; then
+      sudo systemctl stop wg-quick@wg0
+    fi
+    sudo netfilter-persistent restart
+    sudo iptables -N DOCKER-USER
+    sudo iptables -I FORWARD -j DOCKER-USER
+    sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+    sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+    sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
+    if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
+      sed -i "/- \"67:67\/udp\"/d" $DIR/pi-hole.docker-compose.yml
+    else
+      sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
+    fi
+    sudo iptables -A DOCKER-USER -j RETURN
+    sudo netfilter-persistent save
+    sudo systemctl restart docker
+    # Restart wireguard after changing the firewall rules
+    if [ "$wg_enable" = true ]; then
+      sudo systemctl start wg-quick@wg0
+    fi
 
-  print_info "Disable systemd-resolved stub resolver"
-  sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
-  sudo rm /etc/resolv.conf
-  sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
-  sudo systemctl restart systemd-resolved
+    sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
+    rm pi-hole.docker-compose.yml
 
-  print_info "Enable Pi-hole systemd unit"
-  sudo systemctl enable docker-compose@pi-hole
-  print_info "Start Pi-hole docker-compose"
-  sudo systemctl start docker-compose@pi-hole
+    print_info "Disable systemd-resolved stub resolver"
+    sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
+    sudo rm /etc/resolv.conf
+    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+    sudo systemctl restart systemd-resolved
 
-  print_info "Add Pi-hole nameserver to resolv.conf"
-  sudo tee -a /etc/netplan/50-cloud-init.yaml > /dev/null <<EOF
+    print_info "Enable Pi-hole systemd unit"
+    sudo systemctl enable docker-compose@pi-hole
+    print_info "Start Pi-hole docker-compose"
+    sudo systemctl start docker-compose@pi-hole
+
+    print_info "Add Pi-hole nameserver to resolv.conf"
+    sudo tee -a /etc/netplan/50-cloud-init.yaml > /dev/null <<EOF
             nameservers:
                 addresses: [127.0.0.1]
 EOF
-  sudo netplan apply
+    sudo netplan apply
+  fi
 fi
-
