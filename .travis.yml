@@ -10,10 +10,13 @@ jobs:
       dist: focal # Ubuntu 20.04
       script: ${TRAVIS_BUILD_DIR}/setup.sh -a
 
+before_install:
+  - sudo apt-get -y install unattended-upgrades
+
+before_script:
+  # docker already installed
+  - sed -i "/install docker-ce/d" ${TRAVIS_BUILD_DIR}/setup.sh
+
 install:
   # enable ipv6
   - sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-
-before_install:
-  - sudo apt-get -y install unattended-upgrades
-  - sudo apt-get autoremove --purge docker-ce
