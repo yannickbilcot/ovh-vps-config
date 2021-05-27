@@ -353,7 +353,7 @@ if ask "Change the current server hostname and FQDN (DNS)?" Y "CFG_set_hostname_
   input "Enter the new hostname" "" "CFG_server_hostname"
   new_hostname="$input_reply"
   sudo hostnamectl set-hostname "$new_hostname"
-  input "Enter your server FQDN" "exemple.org" "$CFG_server_fqdn"
+  input "Enter your server FQDN" "example.org" "CFG_server_fqdn"
   sudo sed -i "s|^127\.0\.1\.1.*$|127\.0\.1\.1 $new_hostname\.$input_reply $new_hostname|g" /etc/hosts
   print_info "hostname:"
   hostname
