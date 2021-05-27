@@ -1,0 +1,15 @@
+language: bash
+sudo: required
+
+git:
+  depth: 1
+
+jobs:
+  include:
+    - os: linux
+      dist: focal # Ubuntu 20.04
+      script: ${TRAVIS_BUILD_DIR}/setup.sh -a
+
+install:
+  # enable ipv6
+  - sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
