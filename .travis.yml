@@ -16,3 +16,4 @@ install:
 
 before_install:
   - sudo apt-get -y install unattended-upgrades
+  - sudo apt-get autoremove --purge docker-ce
