@@ -237,7 +237,7 @@ function xtables {
 
 # fucntion to parse the config file
 function parse_config {
-   awk '!/^#/ && !/^$/ {printf("CFG_%s\n",$0);}' $1
+   eval $(awk -F= '!/^#/ && !/^$/ && /^[a-zA-Z_]{1,}[a-zA-Z0-9_]{0,}=.*/ { gsub("\\\\","\\\\",$2); gsub("\\$","\\\$",$2); gsub("`","\\`",$2); printf("CFG_%s=%s\n",$1,$2);}' $1 2> /dev/null)
 }
 
 ############################################################
@@ -267,7 +267,7 @@ if [ "$1" = "-a" ] ; then
   if [ -n "$2" ]; then
     config_file="$2"
   fi
-  eval $(parse_config ${DIR}/${config_file})
+  parse_config ${DIR}/${config_file}
 fi
 
 # check the OS distribution
@@ -543,7 +543,7 @@ if ask "Install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
 fi
 
 # Automatic updates
-if ask "Enable automatic updates?" Y "CFG_enable_auto_updates";then
+if ask "Enable automatic security updates?" Y "CFG_enable_auto_security_updates";then
   install unattended-upgrades
   sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
   sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
@@ -736,7 +736,6 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
       sudo cp $DIR/docker-compose@.service /etc/systemd/system/
       sudo systemctl daemon-reload
-      print_info "You can install your docker-compose.yaml files into /etc/docker-compose"
       sudo mkdir -p /etc/docker-compose
     fi
   fi
