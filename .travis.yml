@@ -16,6 +16,10 @@ before_install:
 before_script:
   # docker already installed, disable it
   - sed -i "/install docker-ce/d" ${TRAVIS_BUILD_DIR}/setup.sh
+  - sudo systemctl stop docker.socket
   - sudo systemctl stop docker
+  # flush and delete DOCKER-USER chain
+  - sudo iptables -F DOCKER-USER
+  - sudo iptables -X DOCKER-USER
   # enable ipv6
   - sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
