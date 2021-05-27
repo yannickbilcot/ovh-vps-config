@@ -754,8 +754,14 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
     tz=$(cat /etc/timezone)
     sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
-    print_info "Add firewall rules to prevent external public access to Pi-hole"
 
+    print_info "Disable systemd-resolved stub resolver"
+    sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
+    sudo rm /etc/resolv.conf
+    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+    sudo systemctl restart systemd-resolved
+
+    print_info "Add firewall rules to prevent external public access to Pi-hole"
     # Stop wireguard before changing the firewall rules
     if [ "$wg_enable" = true ]; then
       sudo systemctl stop wg-quick@wg0
@@ -783,16 +789,9 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
     rm pi-hole.docker-compose.yml
 
-    print_info "Disable systemd-resolved stub resolver"
-    sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
-    sudo rm /etc/resolv.conf
-    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
-    sudo systemctl restart systemd-resolved
-
     print_info "Enable Pi-hole systemd unit"
     sudo systemctl enable docker-compose@pi-hole
     print_info "Start Pi-hole docker-compose"
-    sleep 5
     sudo systemctl start docker-compose@pi-hole
     print_info "Pi-hole status:"
     docker exec -it  pihole pihole -v -c
