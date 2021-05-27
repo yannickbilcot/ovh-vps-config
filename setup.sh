@@ -369,9 +369,11 @@ if ask "Configure this server local timezone?" Y "CFG_set_timezone";then
     print_info "Select your timezone from the list below:"
     tz=$(tzselect|tail -1)
   else
-    tz="$CFG_tz"
+    input "Enter the local timezone" "" "CFG_tz"
+    tz="$input_reply"
   fi
   sudo timedatectl set-timezone "$tz"
+  timedatectl show
 fi
 
 # Enable IPv6
@@ -479,7 +481,7 @@ EOF
   echo "$postfix_conf" | sudo tee -a /etc/postfix/main.cf > /dev/null
   input "Please enter your Gmail email" "john.doe@gmail.com" "CFG_gmail_address"
   gmail_email="$input_reply"
-  print_warn "To create a Gmail appication password check this link: https://devanswers.co/create-application-specific-password-gmail/"
+  print_warn "To create a Gmail appication password check this link: https://support.google.com/mail/answer/185833?hl=en"
   input "Please enter your generated app password (hidden)" "" "password" "CFG_gmail_app_password"
   gmail_password="$input_reply"
   echo "[smtp.gmail.com]:587 ${gmail_email}:${gmail_password}" | sudo tee /etc/postfix/sasl_passwd > /dev/null
@@ -516,6 +518,7 @@ EOF
 
   # Alert on security unattended upgrade
   if ask "Receive email alert on system security unattended upgrade?" Y "CFG_unattended_upgrade_alert";then
+    print_info "Setup unattended upgrade email alert"
     sudo sed -i "s|^//Unattended-Upgrade::Mail .*|Unattended-Upgrade::Mail \"$EMAIL_RECIPIENTS\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
     sudo sed -i "s|^//Unattended-Upgrade::MailReport .*|Unattended-Upgrade::MailReport \"on-change\";|g" /etc/apt/apt.conf.d/50unattended-upgrades
   fi
@@ -747,9 +750,8 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     print_info "Download docker-compose.yml"
     tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
     curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
-    input "Choose a password for Pi-hole Web server" "" "password" "CFG_pihole_password"
+    input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_password"
     sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
-    print_info "Set the timezone"
     tz=$(cat /etc/timezone)
     sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
     print_info "Add firewall rules to prevent external public access to Pi-hole"
@@ -758,6 +760,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     if [ "$wg_enable" = true ]; then
       sudo systemctl stop wg-quick@wg0
     fi
+    sudo systemctl stop docker
     sudo netfilter-persistent restart
     sudo iptables -N DOCKER-USER
     sudo iptables -I FORWARD -j DOCKER-USER
@@ -771,7 +774,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     fi
     sudo iptables -A DOCKER-USER -j RETURN
     sudo netfilter-persistent save
-    sudo systemctl restart docker
+    sudo systemctl start docker
     # Restart wireguard after changing the firewall rules
     if [ "$wg_enable" = true ]; then
       sudo systemctl start wg-quick@wg0
