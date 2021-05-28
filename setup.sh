@@ -793,11 +793,11 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo systemctl enable docker-compose@pi-hole
     print_info "Start Pi-hole docker-compose"
     sudo systemctl start docker-compose@pi-hole
-    print_info "Pi-hole status:"
-    docker exec -it  pihole pihole -v -c
-    docker exec -it  pihole pihole status
     print_info "Add Pi-hole nameserver to resolv.conf"
     sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
     sudo netplan apply
+    print_info "Pi-hole status:"
+    docker exec -it  pihole pihole -v -c
+    docker exec -it  pihole pihole status
   fi
 fi
