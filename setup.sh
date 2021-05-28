@@ -32,13 +32,13 @@ EOF
 ############################################################
 function print_info {
   echo -n -e '\e[1;36m'
-  echo -n $1
+  echo -n "$1"
   echo -e '\e[0m'
 }
 
 function print_warn {
   echo -n -e '\e[1;33m'
-  echo -n $1
+  echo -n "$1"
   echo -e '\e[0m'
 }
 
@@ -50,7 +50,7 @@ function die {
 }
 
 function ask {
-  local prompt default reply
+  local prompt default reply cfg
 
   if [[ "$non_interactive_mode" = true ]]; then
     cfg="${!#}"
@@ -91,13 +91,17 @@ function ask {
 }
 
 function input {
-  local prompt default
+  local prompt default cfg
   input_reply=""
 
   if [[ "$non_interactive_mode" = true ]]; then
     cfg="${!#}"
     if [ -n "${!cfg}" ]; then
-      echo -ne "\e[33m$1: \e[1;35m${!cfg}\e[0m\n"
+      if [[ "$3" = "password" ]]; then
+        echo -ne "\e[33m$1: \e[1;35m********\e[0m\n"
+      else
+        echo -ne "\e[33m$1: \e[1;35m${!cfg}\e[0m\n"
+      fi
       input_reply="${!cfg}"
       return
     fi
@@ -138,11 +142,11 @@ function get_github_latest_release {
 
 # function to restore the SSH configuration
 function restore_ssh_configs {
-  if [ -f $DIR/sshd.bak -a -f $DIR/sshd_config.bak ]; then
-    sudo cp $DIR/sshd.bak /etc/pam.d/sshd
-    sudo cp $DIR/sshd_config.bak /etc/ssh/sshd_config
-    sudo rm $DIR/sshd.bak
-    sudo rm $DIR/sshd_config.bak
+  if [ -f "$DIR"/sshd.bak ] && [ -f "$DIR"/sshd_config.bak ]; then
+    sudo cp "$DIR"/sshd.bak /etc/pam.d/sshd
+    sudo cp "$DIR"/sshd_config.bak /etc/ssh/sshd_config
+    sudo rm "$DIR"/sshd.bak
+    sudo rm "$DIR"/sshd_config.bak
     print_warn "SSH backup configuration restored!"
   fi
 }
@@ -151,13 +155,15 @@ function restore_ssh_configs {
 function setup_ssk_key {
   mkdir -p ~/.ssh
   if [ "$non_interactive_mode" = true ]; then
-    for key in "${CFG_ssh_public_keys_list[@]}"; do
-      echo "${key}" >> ~/.ssh/authorized_keys
+    for key in "${CFG_ssh_public_keys_list[@]:?}"; do
+      print_info "Add SSH public key:"
+      echo "$key"
+      echo "$key" >> ~/.ssh/authorized_keys
     done
     return
   fi
   print_info "Generate a SSH key pair on client side with 'ssh-keygen'"
-  input "Copy-paste the client public key (id_rsa.pub) just here"
+  input "Copy-paste the client public key just here"
   echo "${input_reply}" >> ~/.ssh/authorized_keys
   chmod -R go= ~/.ssh
   print_info "==> Open another SSH session to test the SSH Key authentication"
@@ -190,7 +196,7 @@ function wg_create_client {
     die "Wireguard create client issue: mode should be [ip4|ip6|dual]"
   fi
 
-  if [ "$wg_ipv4_enable" = true -a "$wg_ipv6_enable" = true ]; then
+  if [ "$wg_ipv4_enable" = true ] && [ "$wg_ipv6_enable" = true ]; then
     allowed_ips="0.0.0.0/0, ::/0"
   elif [ "$wg_ipv4_enable" = false ]; then
     allowed_ips="::/0"
@@ -198,7 +204,7 @@ function wg_create_client {
     allowed_ips="0.0.0.0/0"
   fi
 
-  cat > $DIR"/wg-client$id.conf" <<EOL
+  cat > "$DIR/wg-client$id.conf" <<EOL
 [Interface]
 PrivateKey = ${client_private_key}
 Address = ${address}
@@ -210,7 +216,7 @@ Endpoint = $(hostname -f):${wg_server_port}
 PersistentKeepalive = 25
 EOL
 
-  cat >> $DIR"/${wg_server_cfg}" <<EOL
+  cat >> "$DIR/${wg_server_cfg}" <<EOL
 
 [Peer]
 PublicKey = ${client_public_key}
@@ -237,7 +243,8 @@ function xtables {
 
 # fucntion to parse the config file
 function parse_config {
-   eval $(awk -F= '!/^#/ && !/^$/ && /^[a-zA-Z_]{1,}[a-zA-Z0-9_]{0,}=.*/ { gsub("\\\\","\\\\",$2); gsub("\\$","\\\$",$2); gsub("`","\\`",$2); printf("CFG_%s=%s\n",$1,$2);}' $1 2> /dev/null)
+  print_info "Parse config file: $1"
+  eval "$(awk -F= '!/^#/ && !/^$/ && /^[a-zA-Z_]{1,}[a-zA-Z0-9_]{0,}=.*/ { gsub("\\\\","\\\\",$2); gsub("\\$","\\\$",$2); gsub("`","\\`",$2); printf("CFG_%s=%s\n",$1,$2);}' "$1" 2> /dev/null)"
 }
 
 ############################################################
@@ -260,24 +267,25 @@ wg_server_ipv6="fd01:8bad:f00d:1::1"
 wg_server_cfg="wg0.conf"
 
 # Repository directory
-DIR=$(echo $0 | rev | cut -d'/' -f 2- | rev)
-
-# Chech input for non-interactive mode
-if [ "$1" = "-a" ] ; then
-  non_interactive_mode=true
-  if [ -n "$2" ]; then
-    config_file="$2"
-  fi
-  parse_config ${DIR}/${config_file}
-fi
+DIR=$(echo "$0" | rev | cut -d'/' -f 2- | rev)
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
     die "This script only support Ubuntu 20.04"
 else
   . /etc/os-release
-  if [ "${ID}" != "ubuntu" -a "${VERSION_ID}" != "20.04" ]; then
+  if [ "${ID}" != "ubuntu" ] && [ "${VERSION_ID}" != "20.04" ]; then
     die "This script only support Ubuntu 20.04"
+  fi
+fi
+
+# Chech input for non-interactive mode
+if [ "$1" = "-a" ] ; then
+  non_interactive_mode=true
+  if [ -n "$2" ]; then
+    parse_config "$2"
+  else
+    parse_config "${DIR}/${config_file}"
   fi
 fi
 
@@ -293,7 +301,8 @@ fi
 # Change user password
 if ask "Change the current user password?" Y "CFG_change_user_password";then
   if [ "$non_interactive_mode" = true ]; then
-    echo -e "$CFG_user_new_password\n$CFG_user_new_password" | sudo passwd $USER
+    input "User new password" "" "password" "CFG_user_new_password"
+    echo -e "$input_reply\n$input_reply" | sudo passwd "$USER"
   else
     passwd
   fi
@@ -303,9 +312,10 @@ fi
 if ask "Create a new user on this server?" N "CFG_create_new_user";then
   if [ "$non_interactive_mode" = true ]; then
     i=0
-    for user in "${CFG_user_name_list[@]}"; do
+    for user in "${CFG_user_name_list[@]:?}"; do
+      print_info "Create new user: $user"
       sudo adduser --gecos "" --disabled-password "$user"
-      echo -e "${CFG_user_password_list[$i]}\n${CFG_user_password_list[$i]}" | sudo passwd "$user"
+      echo -e "${CFG_user_password_list[$i]:?}\n${CFG_user_password_list[$i]:?}" | sudo passwd "$user"
       i=$((i+1))
     done
   else
@@ -322,11 +332,12 @@ fi
 # Delete an user
 if ask "Delete other user(s) on this server?" N "CFG_delete_users";then
   if [ "$non_interactive_mode" = true ]; then
-    for user in "${CFG_delete_users_list[@]}"; do
+    for user in "${CFG_delete_users_list[@]:?}"; do
+      print_info "Delete user: $user"
       sudo deluser --remove-home "$user"
     done
   else
-    echo "$(eval getent passwd {$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)} | cut -d: -f1 | grep -v $USER)"
+    eval getent passwd "{$(awk '/^UID_MIN/ {print $2}' /etc/login.defs)..$(awk '/^UID_MAX/ {print $2}' /etc/login.defs)}" | cut -d: -f1 | grep -v "$USER"
     input "Please enter the user you want to delete from the list above (the home folder will be deleted)"
     sudo deluser --remove-home "$input_reply"
     while ask "Delete another user?";do
@@ -340,7 +351,7 @@ fi
 if ask "Install and configure Git?" Y "CFG_install_git";then
   print_info "Git setup"
   install git
-  cp ${DIR}/gitconfig ~/.gitconfig
+  cp "${DIR}"/gitconfig ~/.gitconfig
   input "Enter your Git username" "John Doe" "CFG_git_user_name"
   git config --global user.name "${input_reply}"
   input "Enter your Git email" "john.doe@mail.com" "CFG_git_user_email"
@@ -379,14 +390,14 @@ fi
 # Enable IPv6
 if ask "Enable and configure the IPv6 network?" Y "CFG_enable_ipv6";then
   print_info "Configure the static IPv6 network"
-  sed -i "s|%PUBLIC_IFACE|$public_iface|g" $DIR/51-cloud-init-ipv6.yaml
+  sed -i "s|%PUBLIC_IFACE|$public_iface|g" "$DIR"/51-cloud-init-ipv6.yaml
   input "Enter the IPv6 address" "" "CFG_ipv6_address"
-  sed -i "s|%IPv6_ADDRESS|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
+  sed -i "s|%IPv6_ADDRESS|$input_reply|g" "$DIR"/51-cloud-init-ipv6.yaml
   input "Enter the IPv6 address prefix" "128" "CFG_ipv6_prefix"
-  sed -i "s|%IPv6_PREFIX|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
+  sed -i "s|%IPv6_PREFIX|$input_reply|g" "$DIR"/51-cloud-init-ipv6.yaml
   input "Enter the IPv6 gateway" "" "CFG_ipv6_gateway"
-  sed -i "s|%IPv6_GATEWAY|$input_reply|g" $DIR/51-cloud-init-ipv6.yaml
-  sudo cp $DIR/51-cloud-init-ipv6.yaml /etc/netplan
+  sed -i "s|%IPv6_GATEWAY|$input_reply|g" "$DIR"/51-cloud-init-ipv6.yaml
+  sudo cp "$DIR"/51-cloud-init-ipv6.yaml /etc/netplan
   sudo netplan try
   sudo netplan apply
   ipv6_enable=true
@@ -404,13 +415,13 @@ if ask "Enable SSH 2FA?" Y "CFG_enable_ssh_2fa";then
   # -R => How long in seconds a user can attempt to enter the correct code
   # -w => How many codes can are valid at a time (this references the 1:30 min - 4 min window of valid codes)
   google-authenticator -t -d -f -r 3 -R 30 -w 3
-  if [ ! -f $DIR/sshd.bak ]; then
-    sudo cp /etc/pam.d/sshd $DIR/sshd.bak
+  if [ ! -f "$DIR"/sshd.bak ]; then
+    sudo cp /etc/pam.d/sshd "$DIR"/sshd.bak
   fi
   echo "auth required pam_google_authenticator.so nullok" | sudo tee -a /etc/pam.d/sshd > /dev/null
   echo "auth required pam_permit.so" | sudo tee -a /etc/pam.d/sshd > /dev/null
-  if [ ! -f $DIR/sshd_config.bak ]; then
-    sudo cp /etc/ssh/sshd_config $DIR/sshd_config.bak
+  if [ ! -f "$DIR"/sshd_config.bak ]; then
+    sudo cp /etc/ssh/sshd_config "$DIR"/sshd_config.bak
   fi
   sudo sed -i "s|^ChallengeResponseAuthentication.*$|ChallengeResponseAuthentication yes|g" /etc/ssh/sshd_config
   sudo systemctl restart sshd.service
@@ -430,12 +441,12 @@ fi
 if ask "Enable authentication via SSH keys?" Y "CFG_enable_ssh_keys";then
   if [ "$ssh_2fa_enable" = true ]; then
     # update ssh config to support SSH key + 2FA authentication
-    if [ ! -f $DIR/sshd.bak ]; then
-      sudo cp /etc/pam.d/sshd $DIR/sshd.bak
+    if [ ! -f "$DIR"/sshd.bak ]; then
+      sudo cp /etc/pam.d/sshd "$DIR"/sshd.bak
     fi
     sudo sed -i "s|^@include common-auth$|#@include common-auth|g" /etc/pam.d/sshd
-    if [ ! -f $DIR/sshd_config.bak ]; then
-      sudo cp /etc/ssh/sshd_config $DIR/sshd_config.bak
+    if [ ! -f "$DIR"/sshd_config.bak ]; then
+      sudo cp /etc/ssh/sshd_config "$DIR"/sshd_config.bak
     fi
     echo "AuthenticationMethods publickey,password publickey,keyboard-interactive" | sudo tee -a /etc/ssh/sshd_config > /dev/null
     sudo systemctl restart sshd.service
@@ -460,11 +471,11 @@ fi
 if ask "Receive email alerts from this server (only support Gmail SMTP server)?" Y "CFG_enable_email_alerts";then
   input "Please enter the email addressses to receive the alerts (comma separated list)" "" "CFG_email_recipients"
   sudo sed -i "/^EMAIL_RECIPIENTS=.*/d" /etc/environment
-  email_recipients="${input_reply}"
-  echo "EMAIL_RECIPIENTS=${email_recipients}" | sudo tee -a /etc/environment > /dev/null
+  email_list="${input_reply}"
+  echo "EMAIL_RECIPIENTS=${email_list}" | sudo tee -a /etc/environment > /dev/null
   email_alert_enable=true
   echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
-  echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+  echo postfix postfix/mailname string "$HOSTNAME" | sudo debconf-set-selections
   print_info "Install postfix"
   install postfix
   print_info "Configure postfix"
@@ -491,7 +502,7 @@ EOF
   print_info "Sign certificate"
   cat /etc/ssl/certs/GlobalSign_Root_CA_-_R2.pem | sudo tee -a /etc/postfix/cacert.pem > /dev/null
   if ask "Send a test email to '${gmail_email}'?" Y "CFG_send_test_email";then
-    echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" ${gmail_email}
+    echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" "${gmail_email}"
     print_info "email sent!"
   fi
 
@@ -500,7 +511,7 @@ EOF
     print_info "Setup SSH login alert"
     sudo mkdir -p /etc/pam.scripts
     sudo chmod 0755 /etc/pam.scripts
-    sudo cp $DIR/ssh_email_alert.sh /etc/pam.scripts
+    sudo cp "$DIR"/ssh_email_alert.sh /etc/pam.scripts
     sudo chmod 0700 /etc/pam.scripts/ssh_email_alert.sh
     sudo chown root:root /etc/pam.scripts/ssh_email_alert.sh
     echo "session required pam_exec.so /etc/pam.scripts/ssh_email_alert.sh" | sudo tee -a /etc/pam.d/sshd > /dev/null
@@ -528,13 +539,13 @@ fi
 if ask "Install PSAD (Port Scan Attack Detection)?" Y "CFG_install_psad";then
   if [ "$email_alert_enable" = false ]; then
     echo postfix postfix/main_mailer_type string Local only | sudo debconf-set-selections
-    echo postfix postfix/mailname string $HOSTNAME | sudo debconf-set-selections
+    echo postfix postfix/mailname string "$HOSTNAME" | sudo debconf-set-selections
   fi
   print_info "Install PSAD"
   install psad
   print_info "Configure PSAD"
   if [ "$email_alert_enable" = true ]; then
-    sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_recipients;|g" /etc/psad/psad.conf
+    sudo sed -i "s|^EMAIL_ADDRESSES .*|EMAIL_ADDRESSES $email_list;|g" /etc/psad/psad.conf
     # Set danger Level to 5
     sudo sed -i "s|^EMAIL_ALERT_DANGER_LEVEL .*|EMAIL_ALERT_DANGER_LEVEL 5;|g" /etc/psad/psad.conf
   fi
@@ -588,11 +599,11 @@ if ask "Setup the $network_type firewall?" Y "CFG_firewall_setup";then
     random_port=$(shuf -i 49152-65535 -n 1)
     input "Press enter or choose another TCP port for SSH" "$random_port" "CFG_firewall_ssh_port"
     new_port="$input_reply"
-    wan_ipv4=$(ip -o a s $public_iface | grep global | awk '{print $4;exit}')
+    wan_ipv4=$(ip -o a s "$public_iface" | grep global | awk '{print $4;exit}')
     sudo iptables -t nat -I PREROUTING -d "$wan_ipv4" -i "$public_iface" -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535
     sudo iptables -t nat -A PREROUTING -d "$wan_ipv4" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
     if [ "$ipv6_enable" = true ]; then
-      wan_ipv6=$(ip -o -6 a s $public_iface | grep global | awk '{print $4;exit}')
+      wan_ipv6=$(ip -o -6 a s "$public_iface" | grep global | awk '{print $4;exit}')
       sudo ip6tables -t nat -I PREROUTING -d "$wan_ipv6" -i "$public_iface" -p tcp -m tcp --dport 22 -j REDIRECT --to-port 65535
       sudo ip6tables -t nat -A PREROUTING -d "$wan_ipv6" -i "$public_iface" -p tcp -m tcp --dport "$new_port" -j REDIRECT --to-ports 22
     fi
@@ -633,7 +644,7 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
     echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-wg.conf > /dev/null
     # firewall rules
     sudo iptables -I FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    sudo iptables -I INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    sudo iptables -I INPUT -p udp -m udp --dport "${wg_server_port}" -m conntrack --ctstate NEW -j ACCEPT
     wg_peer_type="ip4"
     wg_ipv4_enable=true
   fi
@@ -651,11 +662,11 @@ if ask "Install Wireguard?" Y "CFG_install_wireguard";then
     sudo sysctl net.ipv6.conf.all.forwarding=1
     # firewall rules
     sudo ip6tables -I FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    sudo ip6tables -I INPUT -p udp -m udp --dport ${wg_server_port} -m conntrack --ctstate NEW -j ACCEPT
+    sudo ip6tables -I INPUT -p udp -m udp --dport "${wg_server_port}" -m conntrack --ctstate NEW -j ACCEPT
     wg_peer_type="ip6"
     wg_ipv6_enable=true
   fi
-  [ "$wg_ipv4_enable" = false -a "$wg_ipv6_enable" = false ] && die "Wireguard server mode: you should select IPv4 and/or IPv6"
+  [ "$wg_ipv4_enable" = false ] && [ "$wg_ipv6_enable" = false ] && die "Wireguard server mode: you should select IPv4 and/or IPv6"
 
   print_info "Install wireguard"
   install wireguard qrencode
@@ -676,14 +687,14 @@ EOL
 
   if [ "$non_interactive_mode" = true ]; then
     i=1
-    for peer_type in "${CFG_wg_client_list[@]}"; do
-      wg_create_client $peer_type "$i"
+    for peer_type in "${CFG_wg_client_list[@]:?}"; do
+      wg_create_client "$peer_type" "$i"
       i=$((i+1))
     done
   else
     i=1
     while ask "Create a peer client?" Y;do
-      if [ "$wg_ipv4_enable" = true -a "$wg_ipv6_enable" = true ]; then
+      if [ "$wg_ipv4_enable" = true ] && [ "$wg_ipv6_enable" = true ]; then
         print_info "Choose the peer connectivity between IPv4, IPv6 or Dual stack"
         input "Please enter the peer client connectivity type (ip4|ip6|dual)" "dual"
         wg_peer_type="$input_reply"
@@ -695,7 +706,7 @@ EOL
 
   print_info "Move server config to /etc/wireguard/"
   sudo mkdir -p "/etc/wireguard"
-  sudo mv $DIR/${wg_server_cfg} /etc/wireguard/
+  sudo mv "$DIR"/${wg_server_cfg} /etc/wireguard/
   sudo chown root:root /etc/wireguard/${wg_server_cfg}
   sudo chmod 600 /etc/wireguard/${wg_server_cfg}
 
@@ -709,9 +720,7 @@ EOL
   # show the configuration
   print_info "wg show:"
   sudo wg show
-  print_info "Server configuration:"
-  sudo cat /etc/wireguard/${wg_server_cfg}
-  for client in $(find $DIR/wg-client*.conf); do
+  for client in "$DIR"/wg-client*.conf; do
     print_info "Client configuration '$client':"
     qrencode -t ansiutf8 < "$client"
   done
@@ -727,7 +736,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
   sudo apt update
   install docker-ce
   print_info "Add ${USER} to the docker group"
-  sudo usermod -aG docker ${USER}
+  sudo usermod -aG docker "${USER}"
 
   if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
     print_info "Download latest docker-compose binary"
@@ -738,7 +747,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     docker-compose --version
 
     if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
-      sudo cp $DIR/docker-compose@.service /etc/systemd/system/
+      sudo cp "$DIR"/docker-compose@.service /etc/systemd/system/
       sudo systemctl daemon-reload
       sudo mkdir -p /etc/docker-compose
     fi
@@ -749,11 +758,11 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo mkdir -p /etc/docker-compose/pi-hole
     print_info "Download docker-compose.yml"
     tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
-    curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o $DIR/pi-hole.docker-compose.yml
+    curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o "$DIR"/pi-hole.docker-compose.yml
     input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_password"
-    sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" $DIR/pi-hole.docker-compose.yml
+    sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" "$DIR"/pi-hole.docker-compose.yml
     tz=$(cat /etc/timezone)
-    sed -i "s|TZ: .*|TZ: '$tz'|g" $DIR/pi-hole.docker-compose.yml
+    sed -i "s|TZ: .*|TZ: '$tz'|g" "$DIR"/pi-hole.docker-compose.yml
 
     print_info "Disable systemd-resolved stub resolver"
     sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
@@ -770,13 +779,13 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo netfilter-persistent restart
     sudo iptables -N DOCKER-USER
     sudo iptables -I FORWARD -j DOCKER-USER
-    sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-    sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-    sudo iptables -A DOCKER-USER -i ${public_iface} -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
+    sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+    sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+    sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
     if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
-      sed -i "/- \"67:67\/udp\"/d" $DIR/pi-hole.docker-compose.yml
+      sed -i "/- \"67:67\/udp\"/d" "$DIR"/pi-hole.docker-compose.yml
     else
-      sudo iptables -A DOCKER-USER -i ${public_iface} -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
+      sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
     fi
     sudo iptables -A DOCKER-USER -j RETURN
     sudo netfilter-persistent save
@@ -796,8 +805,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     print_info "Add Pi-hole nameserver to resolv.conf"
     sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
     sudo netplan apply
-    print_info "Pi-hole status:"
+    print_info "Pi-hole version:"
     docker exec -it  pihole pihole -v -c
-    docker exec -it  pihole pihole status
   fi
 fi

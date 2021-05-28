@@ -8,7 +8,9 @@ jobs:
   include:
     - os: linux
       dist: focal # Ubuntu 20.04
-      script: ${TRAVIS_BUILD_DIR}/setup.sh -a
+      script:
+        - shellcheck ${TRAVIS_BUILD_DIR}/*.sh
+        - ${TRAVIS_BUILD_DIR}/setup.sh -a
 
 before_install:
   - sudo apt-get -y install unattended-upgrades
