@@ -273,6 +273,7 @@ DIR=$(echo "$0" | rev | cut -d'/' -f 2- | rev)
 if [ ! -f /etc/os-release ]; then
     die "This script only support Ubuntu 20.04"
 else
+  # shellcheck disable=SC1091
   . /etc/os-release
   if [ "${ID}" != "ubuntu" ] && [ "${VERSION_ID}" != "20.04" ]; then
     die "This script only support Ubuntu 20.04"
@@ -500,6 +501,7 @@ EOF
   sudo chown root:root /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
   sudo chmod 0600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
   print_info "Sign certificate"
+  # shellcheck disable=SC2002
   cat /etc/ssl/certs/GlobalSign_Root_CA_-_R2.pem | sudo tee -a /etc/postfix/cacert.pem > /dev/null
   if ask "Send a test email to '${gmail_email}'?" Y "CFG_send_test_email";then
     echo "This is a test email."  | mail -s "[$HOSTNAME] Email Test" "${gmail_email}"
