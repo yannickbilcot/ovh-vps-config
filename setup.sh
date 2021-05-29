@@ -573,10 +573,10 @@ if ask "Setup the $network_type firewall?" Y "CFG_firewall_setup";then
   xtables -P INPUT ACCEPT
   xtables -P FORWARD ACCEPT
   xtables -P OUTPUT ACCEPT
-  xtables -F INPUT
-  xtables -F FORWARD
-  xtables -F OUTPUT
   xtables -t nat -F
+  xtables -t mangle -F
+  xtables -F
+  xtables -X
 
   # make firewall changes persistent
   echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
