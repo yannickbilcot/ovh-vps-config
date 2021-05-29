@@ -68,10 +68,11 @@ EOF
 if [ "${PAM_TYPE}" = "open_session" ]; then
   ( cat <<EOF
 Subject:${SUBJECT}
+To:${EMAIL_RECIPIENTS}
 Content-Type: text/html
 ${BODY}
 EOF
-) | /usr/sbin/sendmail -t "${EMAIL_RECIPIENTS}"
+) | /usr/sbin/sendmail -t
 fi
 
 exit 0
