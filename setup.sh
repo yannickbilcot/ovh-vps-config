@@ -808,6 +808,6 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
     sudo netplan apply
     print_info "Pi-hole version:"
-    docker exec -it  pihole pihole -v -c
+    sudo docker exec -it  pihole pihole -v -c
   fi
 fi
