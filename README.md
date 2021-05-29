@@ -51,7 +51,6 @@ cd ovh-vps-config
 
 - [x] Install Docker environment
 - [x] Install pihole (DNS server)
-- [ ] Create a Webpage dashboard with link to all the web services (with subdomains)
 
 ### Useful commands for debug:
 
