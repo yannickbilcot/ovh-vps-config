@@ -36,9 +36,10 @@ services:
       - "traefik.http.routers.api.service=api@internal"
       - "traefik.http.routers.api.middlewares=auth"
       - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.middlewares.auth.basicauth.users=admin:$2y$05$FKruLtzy/Bq.qvowsC3ntuP3oOgnK8ZH1n3k/Jm/4721LBNOoH5Ua"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$05$$FKruLtzy/Bq.qvowsC3ntuP3oOgnK8ZH1n3k/Jm/4721LBNOoH5Ua"
     networks:
       - web
 networks:
   web:
-    external: true
+    external: false
+    name: web
