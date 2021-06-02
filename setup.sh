@@ -761,7 +761,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     print_info "Download docker-compose.yml"
     tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
     curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o "$DIR"/pi-hole.docker-compose.yml
-    input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_password"
+    input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_web_interface_password"
     sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" "$DIR"/pi-hole.docker-compose.yml
     tz=$(cat /etc/timezone)
     sed -i "s|TZ: .*|TZ: '$tz'|g" "$DIR"/pi-hole.docker-compose.yml
