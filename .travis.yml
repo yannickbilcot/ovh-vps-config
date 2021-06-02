@@ -3,6 +3,7 @@ sudo: required
 
 git:
   depth: 1
+  submodules: false
 
 jobs:
   include:
