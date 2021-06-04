@@ -272,12 +272,12 @@ DIR=$(echo "$0" | rev | cut -d'/' -f 2- | rev)
 
 # check the OS distribution
 if [ ! -f /etc/os-release ]; then
-    die "This script only support Ubuntu 20.04"
+    die "This script only supports Ubuntu 20.04"
 else
   # shellcheck disable=SC1091
   . /etc/os-release
   if [ "${ID}" != "ubuntu" ] && [ "${VERSION_ID}" != "20.04" ]; then
-    die "This script only support Ubuntu 20.04"
+    die "This script only supports Ubuntu 20.04"
   fi
 fi
 
