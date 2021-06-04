@@ -257,6 +257,7 @@ apt_update_done=false
 email_alert_enable=false
 ipv6_enable=false
 non_interactive_mode=false
+docker_compose_systemd_unit=false
 config_file="setup.cfg"
 public_iface=$(ip route show default | awk '/default/ {print $5}')
 
@@ -728,7 +729,7 @@ EOL
   done
 fi
 
-# Install Docker and Docker compose
+# Install Docker
 if ask "Install Docker?" Y "CFG_install_docker";then
   print_info "Add docker repository"
   install apt-transport-https ca-certificates software-properties-common
@@ -740,6 +741,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
   print_info "Add ${USER} to the docker group"
   sudo usermod -aG docker "${USER}"
 
+  # Install docker-compose
   if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
     print_info "Download latest docker-compose binary"
     tag=$(get_github_latest_release "docker/compose")
@@ -749,65 +751,89 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     docker-compose --version
 
     if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
+      docker_compose_systemd_unit=true
       sudo cp "$DIR"/docker-compose@.service /etc/systemd/system/
       sudo systemctl daemon-reload
       sudo mkdir -p /etc/docker-compose
     fi
-  fi
 
-  # Install Docker Pi-hole DNS server
-  if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_pihole";then
-    sudo mkdir -p /etc/docker-compose/pi-hole
-    print_info "Download docker-compose.yml"
-    tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
-    curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o "$DIR"/pi-hole.docker-compose.yml
-    input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_web_interface_password"
-    sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" "$DIR"/pi-hole.docker-compose.yml
-    tz=$(cat /etc/timezone)
-    sed -i "s|TZ: .*|TZ: '$tz'|g" "$DIR"/pi-hole.docker-compose.yml
+    # Install Docker Pi-hole DNS server
+    if ask "Install Pi-hole as a docker-compose service?" Y "CFG_install_docker_pihole";then
+      sudo mkdir -p /etc/docker-compose/pi-hole
+      print_info "Download docker-compose.yml"
+      tag=$(get_github_latest_release "pi-hole/docker-pi-hole")
+      curl -sL "https://raw.githubusercontent.com/pi-hole/docker-pi-hole/${tag}/docker-compose.yml.example" -o "$DIR"/pi-hole.docker-compose.yml
+      input "Choose a password for Pi-hole Web interface (hidden)" "" "password" "CFG_pihole_web_interface_password"
+      sed -i "s|# WEBPASSWORD:.*|WEBPASSWORD: '$input_reply'|g" "$DIR"/pi-hole.docker-compose.yml
+      tz=$(cat /etc/timezone)
+      sed -i "s|TZ: .*|TZ: '$tz'|g" "$DIR"/pi-hole.docker-compose.yml
 
-    print_info "Disable systemd-resolved stub resolver"
-    sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
-    sudo rm /etc/resolv.conf
-    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
-    sudo systemctl restart systemd-resolved
+      print_info "Disable systemd-resolved stub resolver"
+      sudo sed -i "s|#DNSStubListener=yes|DNSStubListener=no|g" /etc/systemd/resolved.conf
+      sudo rm /etc/resolv.conf
+      sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+      sudo systemctl restart systemd-resolved
 
-    print_info "Add firewall rules to prevent external public access to Pi-hole"
-    # Stop wireguard before changing the firewall rules
-    if [ "$wg_enable" = true ]; then
-      sudo systemctl stop wg-quick@wg0
+      print_info "Add firewall rules to prevent external public access to Pi-hole"
+      # Stop wireguard before changing the firewall rules
+      if [ "$wg_enable" = true ]; then
+        sudo systemctl stop wg-quick@wg0
+      fi
+      sudo systemctl stop docker
+      sudo netfilter-persistent restart
+      sudo iptables -N DOCKER-USER
+      sudo iptables -I FORWARD -j DOCKER-USER
+      sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+      sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
+      sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
+      if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
+        sed -i "/- \"67:67\/udp\"/d" "$DIR"/pi-hole.docker-compose.yml
+      else
+        sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
+      fi
+      sudo iptables -A DOCKER-USER -j RETURN
+      sudo netfilter-persistent save
+      sudo systemctl start docker
+      # Restart wireguard after changing the firewall rules
+      if [ "$wg_enable" = true ]; then
+        sudo systemctl start wg-quick@wg0
+      fi
+
+      sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
+      rm pi-hole.docker-compose.yml
+
+      if [ "$docker_compose_systemd_unit" = true ]; then
+        print_info "Enable Pi-hole systemd unit"
+        sudo systemctl enable docker-compose@pi-hole
+        print_info "Start Pi-hole docker-compose"
+        sudo systemctl start docker-compose@pi-hole
+      else
+        print_warn "Start Pi-hole docker compose manually"
+        docker-compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml pull
+        docker-compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml up -d
+      fi
+      print_info "Add Pi-hole nameserver to resolv.conf"
+      sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
+      sudo netplan apply
+      print_info "Pi-hole version:"
+      sudo docker exec -it  pihole pihole -v -c
     fi
-    sudo systemctl stop docker
-    sudo netfilter-persistent restart
-    sudo iptables -N DOCKER-USER
-    sudo iptables -I FORWARD -j DOCKER-USER
-    sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-    sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 53 --ctdir ORIGINAL -j DROP
-    sudo iptables -A DOCKER-USER -i "${public_iface}" -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j DROP
-    if ask "Disable Pi-hole DHCP server?" Y "CFG_pihole_dhcp_server_disable";then
-      sed -i "/- \"67:67\/udp\"/d" "$DIR"/pi-hole.docker-compose.yml
-    else
-      sudo iptables -A DOCKER-USER -i "${public_iface}" -p udp -m conntrack --ctorigdstport 67 --ctdir ORIGINAL -j DROP
-    fi
-    sudo iptables -A DOCKER-USER -j RETURN
-    sudo netfilter-persistent save
-    sudo systemctl start docker
-    # Restart wireguard after changing the firewall rules
-    if [ "$wg_enable" = true ]; then
-      sudo systemctl start wg-quick@wg0
-    fi
 
-    sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
-    rm pi-hole.docker-compose.yml
-
-    print_info "Enable Pi-hole systemd unit"
-    sudo systemctl enable docker-compose@pi-hole
-    print_info "Start Pi-hole docker-compose"
-    sudo systemctl start docker-compose@pi-hole
-    print_info "Add Pi-hole nameserver to resolv.conf"
-    sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
-    sudo netplan apply
-    print_info "Pi-hole version:"
-    sudo docker exec -it  pihole pihole -v -c
+    # Install docker-apps
+    if ask "Install Docker services from 'docker-apps' directory?" Y "CFG_install_docker_apps";then
+      for dir in "$DIR"/docker-apps/*; do
+        if [ -d "$dir" ]; then
+          app=$(echo "$dir" | rev | cut -d'/' -f1 | rev)
+          print_info "Install '$app':"
+          sudo cp -r "$dir" /etc/docker-compose/
+          if [ "$docker_compose_systemd_unit" = true ]; then
+            print_info " - enable systemd unit"
+            sudo systemctl enable docker-compose@"$app"
+            print_info " - start docker-compose"
+            sudo systemctl start docker-compose@"$app"
+          fi
+        fi
+      done
+    fi
   fi
 fi
