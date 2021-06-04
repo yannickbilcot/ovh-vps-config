@@ -241,7 +241,7 @@ function xtables {
   sudo iptables "$@"
 }
 
-# fucntion to parse the config file
+# function to parse the config file
 function parse_config {
   print_info "Parse config file: $1"
   eval "$(awk -F= '!/^#/ && !/^$/ && /^[a-zA-Z_]{1,}[a-zA-Z0-9_]{0,}=.*/ { gsub("\\\\","\\\\",$2); gsub("\\$","\\\$",$2); gsub("`","\\`",$2); printf("CFG_%s=%s\n",$1,$2);}' "$1" 2> /dev/null)"
@@ -347,18 +347,6 @@ if ask "Delete other user(s) on this server?" N "CFG_delete_users";then
       sudo deluser --remove-home "$input_reply"
     done
   fi
-fi
-
-# Git configuration
-if ask "Install and configure Git?" Y "CFG_install_git";then
-  print_info "Git setup"
-  install git
-  cp "${DIR}"/gitconfig ~/.gitconfig
-  input "Enter your Git username" "John Doe" "CFG_git_user_name"
-  git config --global user.name "${input_reply}"
-  input "Enter your Git email" "john.doe@mail.com" "CFG_git_user_email"
-  git config --global user.email "${input_reply}"
-  git config --global credential.username "${input_reply}"
 fi
 
 # Set the hostname and FQDN
