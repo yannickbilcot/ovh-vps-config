@@ -41,28 +41,29 @@ cd ovh-vps-config
 * Open a random port for SSH service on external interface
 
 #### Firewall
-* All the externals ports are closed by default except for SSH and WireGuard service
-* Setup IPv4 firewall
-* Setup IPv6 firewall
+* Simple stateful firewall configuration with iptables
+* External opened ports limited to SSH and WireGuard service
+* Setup IPv4 & IPv6 firewall
 
 #### Security
-* Setup [PSAD](http://cipherdyne.org/psad/) (Port Scan Attack Detection)
-* Setup [fail2ban](https://github.com/fail2ban/fail2ban) to protect SSH
+* Install [PSAD](http://cipherdyne.org/psad/) (Port Scan Attack Detection)
+* Install [fail2ban](https://github.com/fail2ban/fail2ban) to protect SSH
 
-#### Email alerts
-* Install Postifx used as SMTP relay server for Gmail
-** alert on SSH login
-** alert after a system reboot
-** alert on APT unattended security update
-** alert for PSAD service
+#### Email notifications
+* Install Postifx used as SMTP relay server with Gmail
+* Supported alerts:
+  * on SSH login
+  * after a system reboot
+  * on software unattended security update
+  * on port scan detection (PSAD)
 
 #### WireGuard VPN
-* Install WireGuard
-** IPv4, IPv6 or dual stack support
-** Can create multiple peer(s)
+* Install [WireGuard](https://www.wireguard.com/)
+* IPv4, IPv6 or dual stack support
+* Can create multiple peers
 
 #### Docker services
-* Install Docker environment
+* Install [Docker](https://www.docker.com/) environment
 * Install docker-compose
-** Install Pi-hole (DNS server)
-** Can install additional docker services from "docker-apps" subdirectory
+* Install [Pi-hole](https://github.com/pi-hole/pi-hole) (DNS server)
+* Can install additional docker services from "docker-apps" subdirectory
