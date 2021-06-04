@@ -1,3 +1,4 @@
 [submodule "docker-apps"]
 	path = docker-apps
 	url = ../docker-apps
+	branch = master
