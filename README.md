@@ -12,7 +12,7 @@ git clone https://github.com/yannickbilcot/ovh-vps-config.git
 cd ovh-vps-config
 ./setup.sh
 ```
-#### Non-interactive mode
+#### Non-interactive mode installation
 - Edit the configuration file 'setup.cfg'
 - Start the script with the option '-a'
 
@@ -21,34 +21,48 @@ cd ovh-vps-config
 ```
 
 ## VPS Configuration
+### Supported features
 
-- [x] GIT configuration
-- [x] Change default user password
-- [x] Create and delete user(s)
-- [x] Setup the server timezone
-- [x] Setup the server hostname and FQDN
-- [x] Enable IPv6
-- [x] Setup IPv6 Firewall
-- [x] Setup IPv4 Firewall
-- [x] Setup PSAD (Port Scan Attack Detection)
-- [x] Setup APT automatic update/upgrade
+#### Software
+* Software update and upgrade
+* Set the server local timezone
+* Set the server hostname and FQDN
 
-- [x] Setup email alerts
-  - [x] alert after server reboot
-  - [x] alert on SSH login
+#### User
+* Change default user password
+* Create and delete user(s)
 
-- [x] SSH configuration
-  - [x] Authentication via SSH keys
-  - [x] Disable password authentication
-  - [x] Redirect a random TCP port to port 22
-  - [x] Setup fail2ban for SSH
-  - [x] Enable 2FA (google authenticator)
+#### Networking
+* Setup IPv6 network (static address)
 
-- [x] Setup Wireguard
-  - [x] IPv4, IPv6 or Dual stack support
-  - [x] Can create multiple peer(s)
-  - [x] Firewall configuration
+#### SSH configuration
+* Enable 2FA authentication (google authenticator)
+* Enable authentication via SSH keys
+* Open a random port for SSH service on external interface
 
-- [x] Install Docker environment
-- [x] Install pihole (DNS server)
+#### Firewall
+* All the externals ports are closed by default except for SSH and WireGuard service
+* Setup IPv4 firewall
+* Setup IPv6 firewall
 
+#### Security
+* Setup [PSAD](http://cipherdyne.org/psad/) (Port Scan Attack Detection)
+* Setup [fail2ban](https://github.com/fail2ban/fail2ban) to protect SSH
+
+#### Email alerts
+* Install Postifx used as SMTP relay server for Gmail
+** alert on SSH login
+** alert after a system reboot
+** alert on APT unattended security update
+** alert for PSAD service
+
+#### WireGuard VPN
+* Install WireGuard
+** IPv4, IPv6 or dual stack support
+** Can create multiple peer(s)
+
+#### Docker services
+* Install Docker environment
+* Install docker-compose
+** Install Pi-hole (DNS server)
+** Can install additional docker services from "docker-apps" subdirectory
