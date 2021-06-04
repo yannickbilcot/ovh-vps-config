@@ -52,17 +52,3 @@ cd ovh-vps-config
 - [x] Install Docker environment
 - [x] Install pihole (DNS server)
 
-### Useful commands for debug:
-
-* Wireguard
-```bash
-echo module wireguard +p > /sys/kernel/debug/dynamic_debug/control
-```
-* Firewall logging
-```bash
-iptables -N LOGGING
-iptables -A INPUT -j LOGGING
-iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "IPTables-Dropped: " --log-level 4
-iptables -A LOGGING -j DROP
-journalctl -f
-```
