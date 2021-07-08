@@ -467,7 +467,7 @@ if ask "Receive email alerts from this server (only support Gmail SMTP server)?"
   echo postfix postfix/main_mailer_type string Internet Site | sudo debconf-set-selections
   echo postfix postfix/mailname string "$HOSTNAME" | sudo debconf-set-selections
   print_info "Install postfix"
-  install postfix
+  install postfix mailutils
   print_info "Configure postfix"
   sudo sed -i '/^relayhost =.*/,$d' /etc/postfix/main.cf
   postfix_conf=$(cat <<EOF
