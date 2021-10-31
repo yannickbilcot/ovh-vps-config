@@ -8,13 +8,13 @@ WorkingDirectory=/etc/docker-compose/%i
 Type=oneshot
 RemainAfterExit=yes
 
-ExecStartPre=-/usr/local/bin/docker-compose pull --quiet
-ExecStart=/usr/local/bin/docker-compose up -d --remove-orphans
+ExecStartPre=-docker compose pull --quiet
+ExecStart=docker compose up -d --remove-orphans
 
-ExecStop=/usr/local/bin/docker-compose down --remove-orphans
+ExecStop=docker compose down --remove-orphans
 
-ExecReload=/usr/local/bin/docker-compose pull --quiet
-ExecReload=/usr/local/bin/docker-compose up -d
+ExecReload=docker compose pull --quiet
+ExecReload=docker compose up -d
 
 [Install]
 WantedBy=multi-user.target

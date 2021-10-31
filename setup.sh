@@ -733,8 +733,8 @@ if ask "Install Docker?" Y "CFG_install_docker";then
   if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
     print_info "Download latest docker-compose binary"
     tag=$(get_github_latest_release "docker/compose")
-    sudo curl -sL "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+    sudo curl -sL "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
+    sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
     print_info "Check the version"
     docker-compose --version
 
@@ -797,8 +797,8 @@ if ask "Install Docker?" Y "CFG_install_docker";then
         sudo systemctl start docker-compose@pi-hole
       else
         print_warn "Start Pi-hole docker compose manually"
-        docker-compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml pull
-        docker-compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml up -d
+        docker compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml pull
+        docker compose -p pihole -f /etc/docker-compose/pi-hole/docker-compose.yml up -d
       fi
       print_info "Add Pi-hole nameserver to resolv.conf"
       sudo sed -i "/set-name.*/a \            nameservers:\n                addresses: [127.0.0.1]"  /etc/netplan/50-cloud-init.yaml
