@@ -733,10 +733,18 @@ if ask "Install Docker?" Y "CFG_install_docker";then
   if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
     print_info "Download latest docker-compose binary"
     tag=$(get_github_latest_release "docker/compose")
-    sudo curl -L "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /tmp/docker-compose
+    if [ -d "/usr/lib/docker/cli-plugins" ]; then
+      sudo cp /tmp/docker-compose /usr/lib/docker/cli-plugins/docker-compose
+    elif [ -d "/usr/libexec/docker/cli-plugins" ];then
+      sudo cp /tmp/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+    else
+      die "Can't find docker/cli-plugins folder to install docker-compose"
+    fi
     sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
     print_info "Check the version"
     docker compose version
+    rm -f /tmp/docker-compose
 
     if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
       docker_compose_systemd_unit=true
