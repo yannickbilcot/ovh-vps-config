@@ -733,7 +733,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
   if ask "Install Docker Compose?" Y "CFG_install_docker_compose"; then
     print_info "Download latest docker-compose binary"
     tag=$(get_github_latest_release "docker/compose")
-    sudo curl -sL "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
     sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
     print_info "Check the version"
     docker compose version
