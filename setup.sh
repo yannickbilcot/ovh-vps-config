@@ -736,7 +736,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     sudo curl -sL "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
     sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
     print_info "Check the version"
-    docker-compose --version
+    docker compose version
 
     if ask "Create a systemd unit for docker-compose services?" Y "CFG_docker_compose_systemd_unit";then
       docker_compose_systemd_unit=true
