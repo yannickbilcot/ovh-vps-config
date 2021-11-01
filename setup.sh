@@ -734,7 +734,7 @@ if ask "Install Docker?" Y "CFG_install_docker";then
     print_info "Download latest docker-compose binary"
     tag=$(get_github_latest_release "docker/compose")
     mkdir -p ~/.docker/cli-plugins/
-    sudo curl -L "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
+    sudo curl -sL "https://github.com/docker/compose/releases/download/${tag}/docker-compose-$(uname -s)-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
     sudo chmod +x ~/.docker/cli-plugins/docker-compose
     print_info "Check the version"
     docker compose version
@@ -789,6 +789,8 @@ if ask "Install Docker?" Y "CFG_install_docker";then
       fi
 
       sudo cp pi-hole.docker-compose.yml /etc/docker-compose/pi-hole/docker-compose.yml
+      sudo mkdir -p /etc/docker-compose/pi-hole/etc-pihole
+      sudo mkdir -p /etc/docker-compose/pi-hole/etc-dnsmasq.d
       rm pi-hole.docker-compose.yml
 
       if [ "$docker_compose_systemd_unit" = true ]; then
