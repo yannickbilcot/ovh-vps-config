@@ -18,6 +18,7 @@ before_install:
 
 before_script:
   # docker already installed, disable it
+  - sudo rm /usr/local/bin/docker-compose
   - sed -i "/install docker-ce/d" ${TRAVIS_BUILD_DIR}/setup.sh
   - sudo systemctl stop docker.socket
   - sudo systemctl stop docker
